@@ -4,170 +4,65 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>YouTube Downloader</title>
+    <!-- Le style est identique pour garder le même look -->
     <style>
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background-color: #121212; color: #e0e0e0; margin: 0; padding: 20px; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
         .container { background-color: #1e1e1e; padding: 25px; border-radius: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.5); width: 100%; max-width: 600px; }
         h1 { color: #bb86fc; text-align: center; margin-bottom: 20px; }
         input, button, select { width: 100%; padding: 12px; margin-bottom: 15px; border-radius: 5px; border: 1px solid #333; background-color: #2c2c2c; color: #e0e0e0; font-size: 16px; box-sizing: border-box; }
         button { background-color: #03dac6; color: #121212; font-weight: bold; cursor: pointer; border: none; }
-        button:hover { background-color: #3700b3; color: white; }
-        button:disabled { background-color: #444; cursor: not-allowed; }
-        #status { margin-top: 20px; padding: 15px; background-color: #2c2c2c; border-radius: 5px; white-space: pre-wrap; word-wrap: break-word; font-family: monospace; min-height: 50px; max-height: 300px; overflow-y: auto; }
-        .loader { display: none; margin: 10px auto; border: 4px solid #f3f3f3; border-top: 4px solid #03dac6; border-radius: 50%; width: 30px; height: 30px; animation: spin 1s linear infinite; }
-        #results { display: none; margin-top: 20px; }
-        #results h2 { font-size: 18px; color: #e0e0e0; border-bottom: 1px solid #444; padding-bottom: 5px; }
-        .download-options { display: grid; grid-template-columns: 1fr; gap: 10px; }
         .video-option { display: grid; grid-template-columns: 1fr auto; gap: 10px; }
-        #download-counter { font-size: 1.1em; font-weight: bold; color: #03dac6; text-align: center; margin-bottom: 10px; display: none; }
-        .url-container { display: flex; gap: 10px; align-items: center; }
-        .url-container input { flex-grow: 1; }
-        .url-container button { flex-shrink: 0; width: auto; padding: 12px 15px; }
+        #status { margin-top: 10px; text-align: center; min-height: 20px; }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>YouTube Downloader</h1>
-        <form id="analyzeForm">
-            <div class="url-container">
-                <input type="text" id="url" name="url" placeholder="Collez le lien ici" required>
-                <button type="button" id="pasteBtn">Coller</button>
-            </div>
-            <button type="submit" id="analyzeBtn">Analyser le lien</button>
-        </form>
-        <div class="loader" id="loader"></div>
-        <div id="results">
-            <h2 id="resultTitle"></h2>
-            <p id="resultCount"></p>
-            <div class="download-options">
-                <button id="downloadAudioBtn">🎵 Audio MP3</button>
-                <div class="video-option">
-                    <button id="downloadVideoBtn">🎬 Vidéo MP4</button>
-                    <select id="qualitySelect">
-                        <option value="1080">1080p (FHD)</option>
-                        <option value="720" selected>720p (HD)</option>
-                        <option value="480">480p</option>
-                        <option value="360">360p</option>
-                    </select>
-                </div>
-            </div>
+        <input type="text" id="url" placeholder="Collez le lien de la vidéo ici" required>
+            
+        <div class="video-option">
+            <button id="downloadVideoBtn">🎬 Vidéo MP4</button>
+            <select id="qualitySelect">
+                <option value="720" selected>720p (HD)</option>
+                <option value="480">480p</option>
+                <option value="360">360p</option>
+            </select>
         </div>
-        <p id="download-counter"></p>
-        <div id="status">Bienvenue ! Collez un lien et cliquez sur "Analyser".</div>
+        <button id="downloadAudioBtn">🎵 Audio M4A</button>
+
+        <p id="status"></p>
     </div>
 
     <script>
-        const analyzeForm = document.getElementById('analyzeForm');
         const urlInput = document.getElementById('url');
-        const pasteBtn = document.getElementById('pasteBtn');
         const statusDiv = document.getElementById('status');
-        const loader = document.getElementById('loader');
-        const analyzeBtn = document.getElementById('analyzeBtn');
-        const resultsDiv = document.getElementById('results');
-        const counterDiv = document.getElementById('download-counter');
-        let currentUrl = '';
+        const qualitySelect = document.getElementById('qualitySelect');
 
-        pasteBtn.addEventListener('click', async () => {
-            try {
-                const text = await navigator.clipboard.readText();
-                if (text) {
-                    urlInput.value = text;
-                    statusDiv.textContent = "Lien collé depuis le presse-papiers.";
-                } else {
-                    statusDiv.textContent = "Le presse-papiers est vide.";
-                }
-            } catch (err) {
-                statusDiv.textContent = "Impossible de lire le presse-papiers.";
+        document.getElementById('downloadVideoBtn').onclick = () => startDownload('video');
+        document.getElementById('downloadAudioBtn').onclick = () => startDownload('audio');
+
+        function startDownload(format) {
+            const url = urlInput.value;
+            if (!url) {
+                statusDiv.textContent = "Veuillez d'abord coller une URL.";
+                return;
             }
-        });
+                
+            const quality = qualitySelect.value;
+            statusDiv.textContent = "Préparation du téléchargement... Veuillez patienter.";
 
-        analyzeForm.addEventListener('submit', async (event) => {
-            event.preventDefault();
-            currentUrl = urlInput.value;
-            if (!currentUrl) return;
-            analyzeBtn.disabled = true;
-            loader.style.display = 'block';
-            resultsDiv.style.display = 'none';
-            counterDiv.style.display = 'none';
-            statusDiv.textContent = 'Analyse rapide en cours...';
-            try {
-                const response = await fetch('/analyze', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ url: currentUrl })
-                });
-                const data = await response.json();
-                if (response.ok) {
-                    displayResults(data);
-                    statusDiv.textContent = "Analyse terminée. Choisissez un format.";
-                } else {
-                    statusDiv.textContent = 'Erreur: ' + (data.error || 'Erreur inconnue');
-                }
-            } catch (error) {
-                statusDiv.textContent = 'Erreur de connexion : ' + error;
-            } finally {
-                analyzeBtn.disabled = false;
-                loader.style.display = 'none';
+            // On construit l'URL de téléchargement avec tous les paramètres
+            let downloadUrl = `/download?url=${encodeURIComponent(url)}&format=${format}`;
+            if (format === 'video') {
+                downloadUrl += `&quality=${quality}`;
             }
-        });
 
-        function displayResults(data) {
-            resultsDiv.style.display = 'block';
-            document.getElementById('resultTitle').textContent = data.title;
-            document.getElementById('resultCount').textContent = `Contient ${data.video_count} vidéo(s).`;
-            document.getElementById('downloadAudioBtn').onclick = () => startDownload('audio');
-            document.getElementById('downloadVideoBtn').onclick = () => startDownload('video');
-        }
+            // On redirige le navigateur vers l'URL de téléchargement,
+            // ce qui déclenchera la sauvegarde du fichier.
+            window.location.href = downloadUrl;
 
-        async function startDownload(format) {
-            const quality = (format === 'video') ? document.getElementById('qualitySelect').value : null;
-            analyzeBtn.disabled = true;
-            document.getElementById('downloadAudioBtn').disabled = true;
-            document.getElementById('downloadVideoBtn').disabled = true;
-            loader.style.display = 'block';
-            counterDiv.style.display = 'block';
-            counterDiv.textContent = 'Initialisation... Reprise si possible.';
-            statusDiv.textContent = '';
-
-            try {
-                const response = await fetch('/download', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ url: currentUrl, format: format, quality: quality })
-                });
-                const reader = response.body.getReader();
-                const decoder = new TextDecoder();
-                let buffer = '';
-                while (true) {
-                    const { value, done } = await reader.read();
-                    if (done) break;
-                    buffer += decoder.decode(value, { stream: true });
-                    const lines = buffer.split('\n');
-                    buffer = lines.pop();
-                    for (const line of lines) {
-                        if (!line) continue;
-                        // On affiche toutes les lignes car la sortie de aria2c est différente
-                        statusDiv.innerHTML += line + '<br>';
-                        statusDiv.scrollTop = statusDiv.scrollHeight; // Auto-scroll
-
-                        // On continue de chercher le compteur de playlist
-                        if (line.includes('[youtube] PL')) { // Adaptons pour la sortie aria2c
-                            const match = line.match(/Downloading video (\d+) of (\d+)/);
-                            if (match) {
-                                counterDiv.textContent = `[ Vidéo ${match[1]} / ${match[2]} ]`;
-                            }
-                        }
-                    }
-                }
-                counterDiv.textContent = "Opération terminée !";
-            } catch (error) {
-                statusDiv.textContent = 'Erreur de téléchargement : ' + error;
-                counterDiv.textContent = "Erreur";
-            } finally {
-                analyzeBtn.disabled = false;
-                document.getElementById('downloadAudioBtn').disabled = false;
-                document.getElementById('downloadVideoBtn').disabled = false;
-                loader.style.display = 'none';
-            }
+            // On efface le message après quelques secondes
+            setTimeout(() => { statusDiv.textContent = ''; }, 5000);
         }
     </script>
 </body>
