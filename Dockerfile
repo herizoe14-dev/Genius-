@@ -18,6 +18,5 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Étape 5: On copie tout le reste de notre code
 COPY . .
 
-# Étape 6: On définit la commande pour démarrer notre serveur web
-# On ajoute le --timeout pour éviter les erreurs sur les longs téléchargements
-CMD ["gunicorn", "ytt4:app", "--timeout", "300"]
+# Étape 6: On définit la commande pour démarrer notre serveur web sur le bon port
+CMD ["gunicorn", "ytt4:app", "--bind", "0.0.0.0:10000"]

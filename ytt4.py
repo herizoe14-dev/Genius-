@@ -22,27 +22,33 @@ def cleanup_old_files():
     for filename in os.listdir(RAM_DISK_PATH):
         file_path = os.path.join(RAM_DISK_PATH, filename)
         if os.path.getmtime(file_path) < now - 1800: # 1800 secondes = 30 minutes
-            os.remove(file_path)
+            try:
+                os.remove(file_path)
+            except OSError:
+                pass # Le fichier a peut-être déjà été supprimé
 
 def run_download_task(task_id, url, format_choice, quality):
     """S'exécute en arrière-plan pour télécharger le fichier dans la RAM."""
     tasks[task_id] = {"status": "running", "progress": "Démarrage..."}
-        
+    
     try:
         # Nettoyer les vieux fichiers avant de commencer un nouveau téléchargement
         cleanup_old_files()
 
         output_template = os.path.join(RAM_DISK_PATH, f"{task_id}.%(ext)s")
-        commande = ["yt-dlp", "--ffmpeg-location", "/usr/bin/ffmpeg"]
+        
+        # Commande de base
+        commande = ["yt-dlp"]
 
         if format_choice == 'audio':
             commande.extend(["-x", "--audio-format", "mp3", "-o", output_template])
         else:
-            format_string = f"bestvideo[height<=?{quality}]+bestaudio/best[height<=?{quality}]"
+            format_string = f"bestvideo[height<=?{quality}][ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4][height<=?{quality}]"
             commande.extend(["-f", format_string, "--merge-output-format", "mp4", "-o", output_template])
-            
+        
         commande.append(url)
-            
+        
+        # On lance le processus avec un timeout
         process = subprocess.run(commande, capture_output=True, text=True, timeout=300) # Timeout de 5 min
 
         if process.returncode == 0:
@@ -54,8 +60,10 @@ def run_download_task(task_id, url, format_choice, quality):
                 tasks[task_id]["status"] = "error"
                 tasks[task_id]["progress"] = "Fichier non trouvé après téléchargement."
         else:
+            # On garde les 500 derniers caractères de l'erreur pour ne pas surcharger
+            error_message = (process.stderr or process.stdout or "Erreur inconnue.")[-500:]
             tasks[task_id]["status"] = "error"
-            tasks[task_id]["progress"] = (process.stderr or process.stdout)[-500:] # On garde les 500 derniers caractères de l'erreur
+            tasks[task_id]["progress"] = error_message
 
     except subprocess.TimeoutExpired:
         tasks[task_id]["status"] = "error"
