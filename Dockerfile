@@ -1,21 +1,23 @@
-# Utiliser une image de base officielle Python
+# Étape 1: On part d'une image Python officielle et légère
 FROM python:3.9-slim
 
-# Mettre à jour les paquets et installer ffmpeg et aria2c (au cas où)
-RUN apt-get update && apt-get install -y ffmpeg aria2c
+# Étape 2: On met à jour le système et on installe ffmpeg de manière robuste
+# L'option -qq est plus silencieuse, et on nettoie après pour garder l'image petite.
+RUN apt-get update -qq && \
+    apt-get install -y --no-install-recommends ffmpeg && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
 
-# Définir le répertoire de travail
+# Étape 3: On définit le dossier de travail
 WORKDIR /app
 
-# Copier le fichier des dépendances et les installer
+# Étape 4: On copie et on installe les dépendances Python
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copier le reste du code de l'application
+# Étape 5: On copie tout le reste de notre code
 COPY . .
 
-# Exposer le port que Render utilisera
-EXPOSE 10000
-
-# La commande pour démarrer l'application
-CMD ["gunicorn", "ytt4:app", "--bind", "0.0.0.0:10000", "--timeout", "300"]
+# Étape 6: On définit la commande pour démarrer notre serveur web
+# On ajoute le --timeout pour éviter les erreurs sur les longs téléchargements
+CMD ["gunicorn", "ytt4:app", "--timeout", "300"]
