@@ -1,94 +1,37 @@
-from flask import Flask, render_template, request, jsonify, send_from_directory
+from flask import Flask, render_template, request, Response
 import subprocess
-import os
 import re
-import uuid
-from threading import Thread
-import time
 
 app = Flask(__name__)
-
-# --- CONFIGURATION POUR RENDER (PLAN GRATUIT) ---
-# On utilise /tmp, un dossier qui existe en RAM sur les systèmes Linux.
-RAM_DISK_PATH = "/tmp/downloads"
-os.makedirs(RAM_DISK_PATH, exist_ok=True)
-
-# Dictionnaire pour suivre l'état des tâches
-tasks = {}
-
-def cleanup_old_files():
-    """Nettoie les fichiers de plus de 30 minutes pour libérer la RAM."""
-    now = time.time()
-    for filename in os.listdir(RAM_DISK_PATH):
-        file_path = os.path.join(RAM_DISK_PATH, filename)
-        if os.path.getmtime(file_path) < now - 1800: # 1800 secondes = 30 minutes
-            try:
-                os.remove(file_path)
-            except OSError:
-                pass # Le fichier a peut-être déjà été supprimé
-
-def run_download_task(task_id, url, format_choice, quality):
-    """S'exécute en arrière-plan pour télécharger le fichier dans la RAM."""
-    tasks[task_id] = {"status": "running", "progress": "Démarrage..."}
-    
-    try:
-        # Nettoyer les vieux fichiers avant de commencer un nouveau téléchargement
-        cleanup_old_files()
-
-        output_template = os.path.join(RAM_DISK_PATH, f"{task_id}.%(ext)s")
-        
-        # Commande de base
-        commande = ["yt-dlp"]
-
-        if format_choice == 'audio':
-            commande.extend(["-x", "--audio-format", "mp3", "-o", output_template])
-        else:
-            format_string = f"bestvideo[height<=?{quality}][ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4][height<=?{quality}]"
-            commande.extend(["-f", format_string, "--merge-output-format", "mp4", "-o", output_template])
-        
-        commande.append(url)
-        
-        # On lance le processus avec un timeout
-        process = subprocess.run(commande, capture_output=True, text=True, timeout=300) # Timeout de 5 min
-
-        if process.returncode == 0:
-            created_file = next((f for f in os.listdir(RAM_DISK_PATH) if f.startswith(task_id)), None)
-            if created_file:
-                tasks[task_id]["status"] = "completed"
-                tasks[task_id]["filename"] = created_file
-            else:
-                tasks[task_id]["status"] = "error"
-                tasks[task_id]["progress"] = "Fichier non trouvé après téléchargement."
-        else:
-            # On garde les 500 derniers caractères de l'erreur pour ne pas surcharger
-            error_message = (process.stderr or process.stdout or "Erreur inconnue.")[-500:]
-            tasks[task_id]["status"] = "error"
-            tasks[task_id]["progress"] = error_message
-
-    except subprocess.TimeoutExpired:
-        tasks[task_id]["status"] = "error"
-        tasks[task_id]["progress"] = "Le téléchargement a pris trop de temps (plus de 5 minutes)."
-    except Exception as e:
-        tasks[task_id]["status"] = "error"
-        tasks[task_id]["progress"] = str(e)
 
 @app.route('/')
 def index():
     return render_template('index.html')
 
-@app.route('/start-download', methods=['POST'])
-def start_download():
-    data = request.get_json()
-    task_id = str(uuid.uuid4())
-    thread = Thread(target=run_download_task, args=(task_id, data.get('url'), data.get('format'), data.get('quality')))
-    thread.start()
-    return jsonify({"task_id": task_id})
+@app.route('/download')
+def download():
+    url = request.args.get('url')
+    if not url:
+        return "Erreur: URL manquante.", 400
 
-@app.route('/task-status/<task_id>')
-def task_status(task_id):
-    return jsonify(tasks.get(task_id, {"status": "not_found"}))
+    try:
+        # On demande à yt-dlp le meilleur format MP4 qui contient déjà l'audio et la vidéo
+        # C'est la clé pour éviter d'utiliser ffmpeg
+        commande = ["yt-dlp", "-f", "best[ext=mp4]", "-o", "-", url]
+        process = subprocess.Popen(commande, stdout=subprocess.PIPE)
+            
+        # On essaie de deviner un nom de fichier
+        try:
+            title_bytes = subprocess.check_output(["yt-dlp", "--print", "title", url], timeout=5)
+            safe_title = re.sub(r'[\\/*?:"<>|]', "", title_bytes.decode('utf-8', 'ignore').strip())
+        except:
+            safe_title = "video"
 
-@app.route('/download-file/<filename>')
-def download_file(filename):
-    return send_from_directory(RAM_DISK_PATH, filename, as_attachment=True)
-
+        headers = {
+            'Content-Disposition': f'attachment; filename="{safe_title}.mp4"',
+            'Content-Type': 'video/mp4'
+        }
+            
+        return Response(process.stdout, headers=headers)
+    except Exception as e:
+        return f"Une erreur majeure est survenue: {str(e)}", 500
