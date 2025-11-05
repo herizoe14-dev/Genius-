@@ -9,14 +9,14 @@ app = Flask(__name__)
 # Crée un sous-dossier pour les archives de reprise
 ARCHIVE_FOLDER = os.path.join(os.path.dirname(__file__), "archives")
 if not os.path.exists(ARCHIVE_FOLDER):
-    os.makedirs(ARCHIVE_FOLDER)
+    os.makedirs(ARCHIVE_FOLDER, exist_ok=True)
 
 # Définit le dossier de téléchargement final dans le stockage partagé du téléphone
 DOWNLOAD_FOLDER = os.path.join(os.path.expanduser("~"), "storage", "downloads", "YouTube-DL")
 if not os.path.exists(DOWNLOAD_FOLDER):
-    os.makedirs(DOWNLOAD_FOLDER)
+    os.makedirs(DOWNLOAD_FOLDER, exist_ok=True)
 
-@app.route('/')
+@app.route('/', methods=['GET', 'POST'])
 def index():
     """Affiche la page d'accueil."""
     return render_template('index.html')
@@ -98,5 +98,5 @@ def download():
 
     return Response(generate_output(), mimetype='text/plain')
 
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000)
+# if __name__ == '__main__':
+#     app.run(host='0.0.0.0', port=5000)
