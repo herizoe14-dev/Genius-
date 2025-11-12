@@ -1,3 +1,0 @@
-Flask
-yt-dlp
-# gunicorn (non utilisé dans l'exemple, mais peut être utile pour la production)
