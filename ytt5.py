@@ -8,7 +8,7 @@ import os
 # Le chemin vers l'exécutable yt-dlp.
 # Sur Termux, il est généralement dans le PATH après installation via 'pkg install yt-dlp'.
 # Nous allons utiliser 'yt-dlp' directement.
-YT_DLP_BIN = '/usr/local/bin/yt-dlp'
+YT_DLP_BIN = 'yt-dlp'
 
 def run_yt_dlp(command):
     """Exécute la commande yt-dlp et gère les erreurs."""
@@ -50,6 +50,7 @@ def get_video_info(url):
     # Nous devons capturer la sortie pour l'analyser, donc nous allons modifier run_yt_dlp ou le faire ici.
     # Pour simplifier, nous allons utiliser une commande qui liste les formats et les informations de base.
     # Nous allons utiliser --print-json pour obtenir les données structurées.
+    import json # Correction de l'UnboundLocalError
     try:
         result = subprocess.run(
             [YT_DLP_BIN, '--dump-json', '--flat-playlist', url],
@@ -58,7 +59,6 @@ def get_video_info(url):
             check=True,
             encoding='utf-8'
         )
-        import json
         # Si c'est une playlist, yt-dlp retourne un JSON par entrée.
         # Pour simplifier, nous allons juste vérifier si c'est une playlist.
         if 'entries' in result.stdout:
