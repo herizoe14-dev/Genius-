@@ -94,6 +94,9 @@ def download_video(url, quality_code):
         '-f', quality_code,
         '-o', '%(title)s.%(ext)s',
         '--merge-output-format', 'mp4',
+        '-c', # Reprendre les téléchargements interrompus
+        '-w', # Ne pas écraser les fichiers existants
+        '--concurrent-fragments', '4', # Téléchargement fragmenté en parallèle pour accélérer
         '--embed-metadata', # Intégrer les métadonnées
         '--restrict-filenames', # Noms de fichiers sûrs
         '--progress', # Afficher la barre de progression
@@ -116,6 +119,9 @@ def download_audio(url):
         '--audio-format', 'mp3', # mp3 est universel, sinon 'best' pour m4a/opus
         '--audio-quality', '0',
         '-o', '%(title)s.%(ext)s',
+        '-c', # Reprendre les téléchargements interrompus
+        '-w', # Ne pas écraser les fichiers existants
+        '--concurrent-fragments', '4', # Téléchargement fragmenté en parallèle pour accélérer
         '--embed-metadata',
         '--restrict-filenames',
         '--progress',
@@ -132,6 +138,9 @@ def download_playlist(url, mode, quality_code=None):
     base_command = [
         url,
         '-o', '%(playlist)s/%(playlist_index)s - %(title)s.%(ext)s', # Organiser dans un dossier de playlist
+        '-c', # Reprendre les téléchargements interrompus
+        '-w', # Ne pas écraser les fichiers existants
+        '--concurrent-fragments', '4', # Téléchargement fragmenté en parallèle pour accélérer
         '--embed-metadata',
         '--restrict-filenames',
         '--progress',
