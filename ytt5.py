@@ -92,7 +92,7 @@ def download_video(url, quality_code):
     command = [
         url,
         '-f', quality_code,
-        '-o', 'Youtube_Downloads/%(title)s.%(ext)s',
+        '-o', '~/storage/shared/Download/Youtube_Downloads/%(title)s.%(ext)s',
         '--merge-output-format', 'mp4',
         '-c', # Reprendre les téléchargements interrompus
         '-w', # Ne pas écraser les fichiers existants
@@ -118,7 +118,7 @@ def download_audio(url):
         '-x',
         '--audio-format', 'mp3', # mp3 est universel, sinon 'best' pour m4a/opus
         '--audio-quality', '0',
-        '-o', 'Youtube_Downloads/%(title)s.%(ext)s',
+        '-o', '~/storage/shared/Download/Youtube_Downloads/%(title)s.%(ext)s',
         '-c', # Reprendre les téléchargements interrompus
         '-w', # Ne pas écraser les fichiers existants
         '--concurrent-fragments', '4', # Téléchargement fragmenté en parallèle pour accélérer
@@ -137,7 +137,7 @@ def download_playlist(url, mode, quality_code=None):
     
     base_command = [
         url,
-        '-o', 'Youtube_Downloads/%(playlist)s/%(playlist_index)s - %(title)s.%(ext)s', # Organiser dans un dossier de playlist
+        '-o', '~/storage/shared/Download/Youtube_Downloads/%(playlist)s/%(playlist_index)s - %(title)s.%(ext)s', # Organiser dans un dossier de playlist
         '-c', # Reprendre les téléchargements interrompus
         '-w', # Ne pas écraser les fichiers existants
         '--concurrent-fragments', '4', # Téléchargement fragmenté en parallèle pour accélérer
