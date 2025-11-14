@@ -48,38 +48,38 @@ def get_video_info(url):
     command = ['--list-formats', '--flat-playlist', url]
     
     # Nous devons capturer la sortie pour l'analyser, donc nous allons modifier run_yt_dlp ou le faire ici.
-            # Nous allons utiliser --print-json pour obtenir les données structurées.
-            import json # Correction de l'UnboundLocalError
-            try:
-                result = subprocess.run(
-                    [YT_DLP_BIN, '--dump-json', '--flat-playlist', url],
-                    capture_output=True,
-                    text=True,
-                    check=True,
-                    encoding='utf-8'
-                )
-                # Si c'est une playlist, yt-dlp retourne un JSON par entrée.
-                # Pour simplifier, nous allons juste vérifier si c'est une playlist.
-                if 'entries' in result.stdout:
-                    # C'est une playlist, nous n'avons pas besoin de lister les formats maintenant,
-                    # car nous allons télécharger la playlist entière avec le format choisi.
-                    # Nous retournons juste un indicateur de playlist.
-                    return {'is_playlist': True}
-                else:
-                    # C'est une vidéo simple.
-                    info = json.loads(result.stdout)
-                    return info
-                    
-            except subprocess.CalledProcessError as e:
-                print(f"\nERREUR: Impossible de récupérer les informations pour l'URL fournie.")
-                print("Veuillez vérifier l'URL et votre connexion internet.")
-                sys.exit(1)
-            except json.JSONDecodeError:
-                print("\nERREUR: Impossible de décoder la réponse de yt-dlp. L'URL est-elle valide ?")
-                sys.exit(1)
-            except FileNotFoundError:
-                print(f"\nERREUR: L'exécutable '{YT_DLP_BIN}' n'a pas été trouvé.")
-                sys.exit(1)
+    # Nous allons utiliser --print-json pour obtenir les données structurées.
+    import json # Correction de l'UnboundLocalError
+    try:
+        result = subprocess.run(
+            [YT_DLP_BIN, '--dump-json', '--flat-playlist', url],
+            capture_output=True,
+            text=True,
+            check=True,
+            encoding='utf-8'
+        )
+        # Si c'est une playlist, yt-dlp retourne un JSON par entrée.
+        # Pour simplifier, nous allons juste vérifier si c'est une playlist.
+        if 'entries' in result.stdout:
+            # C'est une playlist, nous n'avons pas besoin de lister les formats maintenant,
+            # car nous allons télécharger la playlist entière avec le format choisi.
+            # Nous retournons juste un indicateur de playlist.
+            return {'is_playlist': True}
+        else:
+            # C'est une vidéo simple.
+            info = json.loads(result.stdout)
+            return info
+            
+    except subprocess.CalledProcessError as e:
+        print(f"\nERREUR: Impossible de récupérer les informations pour l'URL fournie.")
+        print("Veuillez vérifier l'URL et votre connexion internet.")
+        sys.exit(1)
+    except json.JSONDecodeError:
+        print("\nERREUR: Impossible de décoder la réponse de yt-dlp. L'URL est-elle valide ?")
+        sys.exit(1)
+    except FileNotFoundError:
+        print(f"\nERREUR: L'exécutable '{YT_DLP_BIN}' n'a pas été trouvé.")
+        sys.exit(1)
 
 
 def download_video(url, quality_code):
