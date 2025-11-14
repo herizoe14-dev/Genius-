@@ -48,39 +48,38 @@ def get_video_info(url):
     command = ['--list-formats', '--flat-playlist', url]
     
     # Nous devons capturer la sortie pour l'analyser, donc nous allons modifier run_yt_dlp ou le faire ici.
-    # Pour simplifier, nous allons utiliser une commande qui liste les formats et les informations de base.
-    # Nous allons utiliser --print-json pour obtenir les données structurées.
-    import json # Correction de l'UnboundLocalError
-    try:
-        result = subprocess.run(
-            [YT_DLP_BIN, '--dump-json', '--flat-playlist', url],
-            capture_output=True,
-            text=True,
-            check=True,
-            encoding='utf-8'
-        )
-        # Si c'est une playlist, yt-dlp retourne un JSON par entrée.
-        # Pour simplifier, nous allons juste vérifier si c'est une playlist.
-        if 'entries' in result.stdout:
-            # C'est une playlist, nous n'avons pas besoin de lister les formats maintenant,
-            # car nous allons télécharger la playlist entière avec le format choisi.
-            # Nous retournons juste un indicateur de playlist.
-            return {'is_playlist': True}
-        else:
-            # C'est une vidéo simple.
-            info = json.loads(result.stdout)
-            return info
-            
-    except subprocess.CalledProcessError as e:
-        print(f"\nERREUR: Impossible de récupérer les informations pour l'URL fournie.")
-        print("Veuillez vérifier l'URL et votre connexion internet.")
-        sys.exit(1)
-    except json.JSONDecodeError:
-        print("\nERREUR: Impossible de décoder la réponse de yt-dlp. L'URL est-elle valide ?")
-        sys.exit(1)
-    except FileNotFoundError:
-        print(f"\nERREUR: L'exécutable '{YT_DLP_BIN}' n'a pas été trouvé.")
-        sys.exit(1)
+            # Nous allons utiliser --print-json pour obtenir les données structurées.
+            import json # Correction de l'UnboundLocalError
+            try:
+                result = subprocess.run(
+                    [YT_DLP_BIN, '--dump-json', '--flat-playlist', url],
+                    capture_output=True,
+                    text=True,
+                    check=True,
+                    encoding='utf-8'
+                )
+                # Si c'est une playlist, yt-dlp retourne un JSON par entrée.
+                # Pour simplifier, nous allons juste vérifier si c'est une playlist.
+                if 'entries' in result.stdout:
+                    # C'est une playlist, nous n'avons pas besoin de lister les formats maintenant,
+                    # car nous allons télécharger la playlist entière avec le format choisi.
+                    # Nous retournons juste un indicateur de playlist.
+                    return {'is_playlist': True}
+                else:
+                    # C'est une vidéo simple.
+                    info = json.loads(result.stdout)
+                    return info
+                    
+            except subprocess.CalledProcessError as e:
+                print(f"\nERREUR: Impossible de récupérer les informations pour l'URL fournie.")
+                print("Veuillez vérifier l'URL et votre connexion internet.")
+                sys.exit(1)
+            except json.JSONDecodeError:
+                print("\nERREUR: Impossible de décoder la réponse de yt-dlp. L'URL est-elle valide ?")
+                sys.exit(1)
+            except FileNotFoundError:
+                print(f"\nERREUR: L'exécutable '{YT_DLP_BIN}' n'a pas été trouvé.")
+                sys.exit(1)
 
 
 def download_video(url, quality_code):
@@ -117,6 +116,7 @@ def download_audio(url):
         url,
         '-x',
         '--audio-format', 'mp3', # mp3 est universel, sinon 'best' pour m4a/opus
+        '--postprocessor-args', '-strict -2', # Ajout de cette option pour résoudre les problèmes de conversion ffmpeg
         '--audio-quality', '0',
         '-o', '~/storage/shared/Download/Youtube_Downloads/%(title)s.%(ext)s',
         '-c', # Reprendre les téléchargements interrompus
@@ -172,12 +172,12 @@ def download_playlist(url, mode, quality_code=None):
 def main():
     """Fonction principale du script."""
     if len(sys.argv) < 2:
-        print("Utilisation: python3 ytt5.py <URL_YouTube>")
-        print("Exemple: python3 ytt5.py https://www.youtube.com/watch?v=dQw4w9WgXcQ")
-        print("Exemple Playlist: python3 ytt5.py https://www.youtube.com/playlist?list=PLl-K7zZEsYLmE59p-MVMhYgGgT_p_q_6Q")
-        sys.exit(1)
-
-    url = sys.argv[1]
+        url = input("Veuillez entrer l'URL de la vidéo ou de la playlist YouTube: ").strip()
+        if not url:
+            print("Aucune URL fournie. Annulation.")
+            sys.exit(1)
+    else:
+        url = sys.argv[1]
     info = get_video_info(url)
 
     if info.get('is_playlist'):
