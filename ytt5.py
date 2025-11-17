@@ -101,6 +101,10 @@ def download_video(url, quality_code):
         '--progress', # Afficher la barre de progression
         '--retries', 'infinite', # Robustesse pour faible réseau
         '--fragment-retries', 'infinite', # Robustesse pour faible réseau
+        '--no-mtime', # Ne pas définir l'heure de modification du fichier
+        '--no-warnings', # Supprimer les avertissements qui peuvent être confondus avec des erreurs
+        '--force-overwrites', # Forcer l'écrasement des fichiers temporaires pour la reprise
+        '--ignore-errors', # Ignorer les erreurs de téléchargement (utile pour les playlists) # Robustesse pour faible réseau
     ]
     run_yt_dlp(command)
     print("\n--- Téléchargement Vidéo Terminé ---")
@@ -126,7 +130,11 @@ def download_audio(url):
         '--restrict-filenames',
         '--progress',
         '--retries', 'infinite',
-        '--fragment-retries', 'infinite',
+        '--fragment-retries', 'infinite', # Robustesse pour faible réseau
+        '--no-mtime', # Ne pas définir l'heure de modification du fichier
+        '--no-warnings', # Supprimer les avertissements qui peuvent être confondus avec des erreurs
+        '--force-overwrites', # Forcer l'écrasement des fichiers temporaires pour la reprise
+        '--ignore-errors', # Ignorer les erreurs de téléchargement (utile pour les playlists)
     ]
     run_yt_dlp(command)
     print("\n--- Téléchargement Audio Terminé ---")
@@ -145,7 +153,11 @@ def download_playlist(url, mode, quality_code=None):
         '--restrict-filenames',
         '--progress',
         '--retries', 'infinite',
-        '--fragment-retries', 'infinite',
+        '--fragment-retries', 'infinite', # Robustesse pour faible réseau
+        '--no-mtime', # Ne pas définir l'heure de modification du fichier
+        '--no-warnings', # Supprimer les avertissements qui peuvent être confondus avec des erreurs
+        '--force-overwrites', # Forcer l'écrasement des fichiers temporaires pour la reprise
+        '--ignore-errors', # Ignorer les erreurs de téléchargement (utile pour les playlists)
     ]
     
     if mode == 'video':
