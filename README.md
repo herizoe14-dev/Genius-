@@ -2,6 +2,24 @@
 
 Application web Flask et bot Telegram pour télécharger du contenu YouTube avec système de crédits.
 
+## ⚡ Démarrage Rapide
+
+```bash
+# 1. Installer les dépendances
+pip install -r requirements.txt
+
+# 2. Configurer les variables d'environnement
+python setup.py
+
+# 3. Éditer .env avec vos tokens Telegram
+# (voir instructions dans setup.py)
+
+# 4. Lancer le bot
+python ytt.py
+```
+
+> ⚠️ **Important**: Vous devez configurer votre fichier `.env` avant de lancer l'application. Sans configuration, vous verrez l'erreur "Variable d'environnement API_TOKEN manquante".
+
 ## 🔒 Améliorations de Sécurité
 
 ### Version actuelle inclut :
@@ -50,6 +68,12 @@ pip install Flask werkzeug pyTelegramBotAPI python-dotenv
 
 ### Configuration
 
+#### Option 1 : Script automatique (recommandé)
+```bash
+python setup.py
+```
+
+#### Option 2 : Configuration manuelle
 1. Copiez le fichier `.env.example` en `.env` :
 ```bash
 cp .env.example .env
@@ -57,6 +81,7 @@ cp .env.example .env
 
 2. Éditez `.env` et remplissez vos valeurs :
 ```
+API_TOKEN=votre_token_bot_principal
 FLASK_SECRET=votre_cle_secrete_generee_aleatoirement
 TOKEN_BOT_USER=votre_token_bot_telegram
 TOKEN_BOT_ADMIN=votre_token_bot_admin_telegram

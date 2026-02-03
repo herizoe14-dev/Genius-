@@ -21,7 +21,17 @@ def get_required_env(var_name, dev_default=None):
             return dev_default
         else:
             print(f"❌ ERREUR: Variable d'environnement {var_name} manquante!")
-            print(f"💡 Créez un fichier .env basé sur .env.example")
+            print()
+            print("💡 Pour configurer l'application:")
+            print("   1. Copiez le fichier .env.example en .env:")
+            print("      cp .env.example .env")
+            print()
+            print("   2. Éditez .env et remplissez vos valeurs:")
+            print(f"      - {var_name}=votre_valeur")
+            print()
+            print("   OU lancez le script de configuration:")
+            print("      python setup.py")
+            print()
             sys.exit(1)
     return value
 
