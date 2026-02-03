@@ -64,13 +64,15 @@
 
   <main class="container">
     {% with messages = get_flashed_messages(with_categories=true) %}
+      <div class="flashes">
       {% if messages %}
-        <div class="flashes">
         {% for category, message in messages %}
           <div class="flash {{ category }}">{{ message }}</div>
         {% endfor %}
-        </div>
+      {% else %}
+        <div class="flash info empty">Aucune notification pour le moment.</div>
       {% endif %}
+      </div>
     {% endwith %}
 
     {% block content %}{% endblock %}
