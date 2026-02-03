@@ -90,13 +90,15 @@ button.danger{ background:linear-gradient(90deg, #ff8a8a, #ff5b5b); color:white 
 
 /* Flash messages */
 .flashes{margin-bottom:12px}
-.flash{padding:10px 12px; border-radius:10px; margin-bottom:10px; color:#02221a}
-.flash.success{background:linear-gradient(90deg, rgba(0,209,122,0.12), rgba(0,209,122,0.06))}
-.flash.danger{background:linear-gradient(90deg, rgba(230,75,75,0.08), rgba(230,75,75,0.04))}
 .flash{
+  padding:10px 12px;
+  border-radius:10px;
+  margin-bottom:10px;
   border: 1px solid rgba(255,255,255,0.04);
   color: var(--text);
 }
+.flash.success{background:linear-gradient(90deg, rgba(0,209,122,0.12), rgba(0,209,122,0.06))}
+.flash.danger{background:linear-gradient(90deg, rgba(230,75,75,0.08), rgba(230,75,75,0.04))}
 
 /* Forms & tables */
 form{ display:flex; flex-direction:column; gap:8px; }

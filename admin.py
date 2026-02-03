@@ -6,12 +6,13 @@ bot_admin = telebot.TeleBot(config.TOKEN_BOT_ADMIN)
 bot_user = telebot.TeleBot(config.TOKEN_BOT_USER)
 
 def resolve_telegram_id(user_id):
+    """Resolve a Telegram chat ID from a numeric ID or username."""
     user_str = str(user_id).strip()
     if user_str.isdigit():
         return int(user_str)
     try:
         auth_data = auth.load_auth_data()
-    except Exception:
+    except (FileNotFoundError, json.JSONDecodeError, OSError):
         return None
     telegram_id = auth_data.get("users", {}).get(user_str, {}).get("telegram_id", "")
     if str(telegram_id).isdigit():
@@ -19,11 +20,15 @@ def resolve_telegram_id(user_id):
     return None
 
 def iter_maintenance_recipients():
+    """Collect Telegram IDs from user data and auth records for broadcast."""
     recipients = set()
     data_file = "users_data.json"
     if os.path.exists(data_file):
-        with open(data_file, "r", encoding="utf-8") as f:
-            data = json.load(f)
+        try:
+            with open(data_file, "r", encoding="utf-8") as f:
+                data = json.load(f)
+        except (OSError, json.JSONDecodeError):
+            data = {}
         for u_id in data.keys():
             resolved = resolve_telegram_id(u_id)
             if resolved:
@@ -34,7 +39,7 @@ def iter_maintenance_recipients():
             telegram_id = str(info.get("telegram_id", "")).strip()
             if telegram_id.isdigit():
                 recipients.add(int(telegram_id))
-    except Exception:
+    except (FileNotFoundError, json.JSONDecodeError, OSError):
         pass
     return recipients
 
@@ -102,7 +107,8 @@ def process_admin_actions(call):
                 markup.add(types.InlineKeyboardButton("💬 REJOINDRE LA DISCUSSION", url=url_link))
                 bot_user.send_message(chat_id, msg_text, reply_markup=markup, parse_mode="Markdown")
                 count += 1
-            except: continue
+            except telebot.apihelper.ApiTelegramException:
+                continue
         bot_admin.answer_callback_query(call.id, f"✅ Envoyé à {count} personnes")
 
     else:
@@ -111,14 +117,21 @@ def process_admin_actions(call):
         
         if action == "admin_ok":
             pack = parts[2]
-            amount = int(pack) if str(pack).isdigit() else (10 if "10" in pack else 50 if "50" in pack else 100)
+            if str(pack).isdigit():
+                amount = int(pack)
+            elif "10" in pack:
+                amount = 10
+            elif "50" in pack:
+                amount = 50
+            else:
+                amount = 100
             add_credits(u_id, amount)
             chat_id = resolve_telegram_id(u_id)
             note = ""
             if chat_id:
                 try:
                     bot_user.send_message(chat_id, f"🎉 **Achat validé !** +{amount} crédits ajoutés.", parse_mode="Markdown")
-                except Exception:
+                except telebot.apihelper.ApiTelegramException:
                     note = " ⚠️ Notification Telegram échouée."
             else:
                 note = " ⚠️ Telegram ID manquant."
@@ -132,7 +145,7 @@ def process_admin_actions(call):
             if chat_id:
                 try:
                     bot_user.send_message(chat_id, msg_text, reply_markup=markup, parse_mode="Markdown")
-                except Exception:
+                except telebot.apihelper.ApiTelegramException:
                     note = " ⚠️ Notification Telegram échouée."
             else:
                 note = " ⚠️ Telegram ID manquant."
@@ -144,7 +157,7 @@ def process_admin_actions(call):
             if chat_id:
                 try:
                     bot_user.send_message(chat_id, "❌ Votre demande d'achat a été refusée.")
-                except Exception:
+                except telebot.apihelper.ApiTelegramException:
                     note = " ⚠️ Notification Telegram échouée."
             else:
                 note = " ⚠️ Telegram ID manquant."
