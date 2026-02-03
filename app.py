@@ -44,12 +44,11 @@ PENDING_LOG = "pending_purchases.log"
 
 # === Input validation and sanitization ===
 def sanitize_username(username):
-    """Valide et nettoie le nom d'utilisateur pour éviter les injections."""
+    """Valide le nom d'utilisateur pour éviter les injections."""
     if not username or not isinstance(username, str):
         return None
-    # Autoriser seulement alphanumériques, tirets et underscores
-    username = re.sub(r'[^a-zA-Z0-9_-]', '', username)
-    if len(username) < 3 or len(username) > 30:
+    # Vérifier que le username ne contient que des caractères valides
+    if not re.match(r'^[a-zA-Z0-9_-]{3,30}$', username):
         return None
     return username
 

@@ -55,8 +55,8 @@ def register_handlers(bot):
             return
         
         if get_user_data(user_id)['credits'] > 0:
-            # On génère un ID court unique pour ce lien
-            link_id = str(uuid.uuid4())[:8]
+            # On génère un ID court unique pour ce lien (lowercase pour cohérence)
+            link_id = str(uuid.uuid4())[:8].lower()
             url_storage[link_id] = url
             
             markup = types.InlineKeyboardMarkup()

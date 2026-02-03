@@ -1,5 +1,6 @@
 # --- CONFIGURATION CENTRALISÉE ---
 import os
+import sys
 
 # Charger les variables d'environnement depuis .env si disponible
 try:
@@ -8,18 +9,34 @@ try:
 except ImportError:
     pass  # python-dotenv n'est pas installé, on utilise les variables d'environnement système
 
-# SÉCURITÉ : Utilisation de variables d'environnement pour les tokens sensibles
+# SÉCURITÉ : Variables d'environnement obligatoires
+# Les tokens par défaut sont pour le développement UNIQUEMENT et doivent être changés
+def get_required_env(var_name, dev_default=None):
+    """Récupère une variable d'environnement requise."""
+    value = os.getenv(var_name)
+    if not value:
+        if dev_default and os.getenv("FLASK_ENV") == "development":
+            print(f"⚠️  AVERTISSEMENT: Utilisation de la valeur par défaut pour {var_name}")
+            print(f"⚠️  Configurez .env en production!")
+            return dev_default
+        else:
+            print(f"❌ ERREUR: Variable d'environnement {var_name} manquante!")
+            print(f"💡 Créez un fichier .env basé sur .env.example")
+            sys.exit(1)
+    return value
+
 # Variables attendue par ytt.py
-API_TOKEN = os.getenv("API_TOKEN", "8371092102:AAEejzC1RrSCuv0knFRsTtKTDnWWp86AcWo")
+API_TOKEN = get_required_env("API_TOKEN", "8371092102:AAEejzC1RrSCuv0knFRsTtKTDnWWp86AcWo")
 
 # Variables utilisées par admin.py et boutique.py
-TOKEN_BOT_USER = os.getenv("TOKEN_BOT_USER", "8371092102:AAEejzC1RrSCuv0knFRsTtKTDnWWp86AcWo")
-TOKEN_BOT_ADMIN = os.getenv("TOKEN_BOT_ADMIN", "8268078828:AAHRNYrWexFCkBfIU2OMrXbbysPYDEaMF54")
+TOKEN_BOT_USER = get_required_env("TOKEN_BOT_USER", "8371092102:AAEejzC1RrSCuv0knFRsTtKTDnWWp86AcWo")
+TOKEN_BOT_ADMIN = get_required_env("TOKEN_BOT_ADMIN", "8268078828:AAHRNYrWexFCkBfIU2OMrXbbysPYDEaMF54")
 
 # Ton ID personnel pour recevoir les alertes sur le Bot 2
-ADMIN_ID = int(os.getenv("ADMIN_ID", "5732047363"))
+ADMIN_ID = int(get_required_env("ADMIN_ID", "5732047363"))
 
+# Configuration mail (optionnelle)
 MAIL_SERVER = os.getenv("MAIL_SERVER", 'smtp.gmail.com')
 MAIL_PORT = int(os.getenv("MAIL_PORT", "587"))  # Correction : 587 est le port SMTP correct avec TLS
-MAIL_USERNAME = os.getenv("MAIL_USERNAME", 'ton-email@gmail.com')
-MAIL_PASSWORD = os.getenv("MAIL_PASSWORD", 'votre-mot-de-passe-d-application')  # Pas ton mot de passe normal !
+MAIL_USERNAME = os.getenv("MAIL_USERNAME")  # None si non configuré
+MAIL_PASSWORD = os.getenv("MAIL_PASSWORD")  # None si non configuré
