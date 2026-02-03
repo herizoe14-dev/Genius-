@@ -15,7 +15,7 @@ bot_user = telebot.TeleBot(config.TOKEN_BOT_USER)
 VALID_PACK_AMOUNTS = ("10", "50", "100")
 
 def resolve_telegram_id(user_id):
-    """Resolve a Telegram chat ID from a numeric ID or auth user key (auth_data users key)."""
+    """Resolve a Telegram chat ID from a numeric ID or user identifier in auth_data."""
     user_str = str(user_id).strip()
     if user_str.isdigit():
         value = int(user_str)
@@ -55,7 +55,14 @@ def get_maintenance_recipients():
     return recipients
 
 def parse_pack_amount(pack_value):
-    """Return credit amount; unknown values default to 100 and notify admin."""
+    """Return credit amount; unknown values default to 100 and notify admin.
+
+    Args:
+        pack_value: Pack identifier or label.
+
+    Returns:
+        int: Credit amount.
+    """
     pack_str = str(pack_value).strip().upper()
     if pack_str in VALID_PACK_AMOUNTS:
         return int(pack_str)
