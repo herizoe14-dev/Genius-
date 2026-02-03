@@ -6,7 +6,7 @@ bot_admin = telebot.TeleBot(config.TOKEN_BOT_ADMIN)
 bot_user = telebot.TeleBot(config.TOKEN_BOT_USER)
 
 def resolve_telegram_id(user_id):
-    """Resolve a Telegram chat ID from a numeric ID or auth user key."""
+    """Resolve a Telegram chat ID from a numeric ID or auth user key; return int or None."""
     user_str = str(user_id).strip()
     if user_str.isdigit():
         return int(user_str)
@@ -42,6 +42,24 @@ def iter_maintenance_recipients():
     except (FileNotFoundError, json.JSONDecodeError, OSError):
         pass
     return recipients
+
+def parse_pack_amount(pack_value):
+    """Return credit amount for a pack value, defaulting safely."""
+    pack_str = str(pack_value).strip().upper()
+    if pack_str in ("10", "50", "100"):
+        return int(pack_str)
+    name_map = {
+        "BRONZE": 10,
+        "ARGENT": 50,
+        "OR": 100,
+        "PREMIUM": 100,
+    }
+    if pack_str in name_map:
+        return name_map[pack_str]
+    digits = "".join(ch for ch in pack_str if ch.isdigit())
+    if digits in ("10", "50", "100"):
+        return int(digits)
+    return 100
 
 # --- FONCTION POUR LIRE LE JSON ---
 def get_maintenance_config():
@@ -117,17 +135,7 @@ def process_admin_actions(call):
         
         if action == "admin_ok":
             pack = parts[2]
-            pack_str = str(pack).strip()
-            if pack_str in ("10", "50", "100"):
-                amount = int(pack_str)
-            elif "10" in pack_str:
-                amount = 10
-            elif "50" in pack_str:
-                amount = 50
-            elif "100" in pack_str:
-                amount = 100
-            else:
-                amount = 100
+            amount = parse_pack_amount(pack)
             add_credits(u_id, amount)
             chat_id = resolve_telegram_id(u_id)
             note = ""
