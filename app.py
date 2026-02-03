@@ -11,6 +11,7 @@ import os
 import json
 import time
 from threading import Lock
+from datetime import datetime
 from flask import Flask, render_template, request, redirect, session, send_file, url_for, flash, make_response
 from downloader import download_content
 from limiteur import get_user_data, spend_credit, add_credits, save_data, DATA_FILE
@@ -106,6 +107,16 @@ def ensure_pending_log():
     if not os.path.exists(PENDING_LOG):
         with open(PENDING_LOG, "w", encoding="utf-8") as f:
             f.write("")
+
+def get_telegram_id(username):
+    """Get telegram_id for a username from auth data"""
+    try:
+        user = auth.get_user(username)
+        if user and user.get('telegram_id'):
+            return user.get('telegram_id')
+    except (KeyError, TypeError, AttributeError):
+        pass
+    return None
 
 # === Routes d'auth (inscription / connexion / logout) ===
 @app.route('/register', methods=['GET', 'POST'])
@@ -324,11 +335,13 @@ def admin_panel():
                     except Exception as e:
                         app.logger.exception("Erreur lors de la mise à jour du log")
                     
-                    # Notify user via Telegram bot
+                    # Notify user via Telegram bot if they have a telegram_id
                     try:
-                        bot_user.send_message(username, f"🎉 **Achat validé !** +{amount} crédits ajoutés.", parse_mode="Markdown")
-                    except:
-                        pass
+                        telegram_id = get_telegram_id(username)
+                        if telegram_id:
+                            bot_user.send_message(telegram_id, f"🎉 **Achat validé !** +{amount} crédits ajoutés.", parse_mode="Markdown")
+                    except Exception as e:
+                        app.logger.debug(f"Failed to send Telegram notification: {e}")
                     
                     flash(f"✅ Achat approuvé pour {username} (+{amount} crédits)", "success")
                 else:
@@ -354,11 +367,13 @@ def admin_panel():
             except Exception as e:
                 app.logger.exception("Erreur lors de la mise à jour du log")
             
-            # Notify user via Telegram bot
+            # Notify user via Telegram bot if they have a telegram_id
             try:
-                bot_user.send_message(username, "❌ Votre demande d'achat a été refusée.", parse_mode="Markdown")
-            except:
-                pass
+                telegram_id = get_telegram_id(username)
+                if telegram_id:
+                    bot_user.send_message(telegram_id, "❌ Votre demande d'achat a été refusée.", parse_mode="Markdown")
+            except Exception as e:
+                app.logger.debug(f"Failed to send Telegram notification: {e}")
             
             flash(f"❌ Achat refusé pour {username}", "success")
         
@@ -372,11 +387,14 @@ def admin_panel():
                         data = json.load(f)
                 
                 count = 0
-                for uid in data.keys():
+                for username in data.keys():
                     try:
-                        bot_user.send_message(uid, f"📢 **Message de l'administrateur**\n\n{message}", parse_mode="Markdown")
-                        count += 1
-                    except:
+                        telegram_id = get_telegram_id(username)
+                        if telegram_id:
+                            bot_user.send_message(telegram_id, f"📢 **Message de l'administrateur**\n\n{message}", parse_mode="Markdown")
+                            count += 1
+                    except Exception as e:
+                        app.logger.debug(f"Failed to send broadcast to {username}: {e}")
                         continue
                 
                 flash(f"📤 Message envoyé à {count} utilisateurs", "success")
@@ -415,7 +433,6 @@ def admin_panel():
                 for line in f:
                     try:
                         entry = json.loads(line.strip())
-                        from datetime import datetime
                         ts = entry.get('ts', 0)
                         timestamp_str = datetime.fromtimestamp(ts).strftime('%Y-%m-%d %H:%M:%S') if ts else 'N/A'
                         pending_purchases.append({
@@ -423,7 +440,7 @@ def admin_panel():
                             'pack': entry.get('pack', 'Unknown'),
                             'timestamp': timestamp_str
                         })
-                    except:
+                    except (json.JSONDecodeError, ValueError, OSError):
                         continue
     
     stats['pending_purchases'] = len(pending_purchases)
