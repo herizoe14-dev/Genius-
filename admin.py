@@ -75,7 +75,11 @@ def parse_pack_amount(pack_value):
     try:
         bot_admin.send_message(config.ADMIN_ID, f"⚠️ {message}")
     except telebot.apihelper.ApiTelegramException as exc:
-        logging.warning("Notification admin échouée pour pack '%s': %s", pack_value, exc)
+        logging.warning(
+            "Notification admin échouée pour pack '%s': %s (vérifie ADMIN_ID et le bot admin)",
+            pack_value,
+            exc,
+        )
     return 100
 
 # --- FONCTION POUR LIRE LE JSON ---
