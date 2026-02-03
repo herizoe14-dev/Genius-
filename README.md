@@ -50,6 +50,16 @@ pip install Flask werkzeug pyTelegramBotAPI python-dotenv
 
 ### Configuration
 
+#### Mode Développement (Test Rapide)
+Pour tester rapidement l'application en local, vous pouvez simplement lancer les scripts sans configuration :
+```bash
+python ytt.py
+```
+L'application utilisera automatiquement des valeurs par défaut avec des avertissements.
+
+#### Mode Production
+Pour un déploiement en production, configurez les variables d'environnement :
+
 1. Copiez le fichier `.env.example` en `.env` :
 ```bash
 cp .env.example .env
@@ -57,13 +67,17 @@ cp .env.example .env
 
 2. Éditez `.env` et remplissez vos valeurs :
 ```
+FLASK_ENV=production
 FLASK_SECRET=votre_cle_secrete_generee_aleatoirement
+API_TOKEN=votre_token_bot_principal
 TOKEN_BOT_USER=votre_token_bot_telegram
 TOKEN_BOT_ADMIN=votre_token_bot_admin_telegram
 ADMIN_ID=votre_id_telegram
 ```
 
-⚠️ **IMPORTANT** : Ne commitez JAMAIS le fichier `.env` dans Git !
+⚠️ **IMPORTANT** : 
+- Ne commitez JAMAIS le fichier `.env` dans Git !
+- En production (`FLASK_ENV=production`), toutes les variables d'environnement sont obligatoires
 
 ### Génération d'une clé secrète Flask
 
