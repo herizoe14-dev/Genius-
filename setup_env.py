@@ -45,7 +45,13 @@ def main():
     # Flask Configuration
     print("=== Configuration Flask ===")
     default_secret = os.urandom(32).hex()
-    config['FLASK_SECRET'] = input(f"FLASK_SECRET [{default_secret[:16]}...]: ").strip() or default_secret
+    user_secret = input(f"FLASK_SECRET [{default_secret[:16]}...]: ").strip()
+    if user_secret:
+        if len(user_secret) < 32:
+            print("⚠️  Attention: FLASK_SECRET devrait avoir au moins 32 caractères pour une sécurité optimale")
+        config['FLASK_SECRET'] = user_secret
+    else:
+        config['FLASK_SECRET'] = default_secret
     config['FLASK_ENV'] = input("FLASK_ENV [production]: ").strip() or "production"
     
     print()
