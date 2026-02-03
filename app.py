@@ -18,6 +18,7 @@ from limiteur import get_user_data, spend_credit, add_credits, save_data, DATA_F
 import telebot
 import config
 import auth
+from admin import resolve_telegram_id
 
 # === Configuration Flask ===
 app = Flask(__name__, static_folder="static", template_folder="templates")
@@ -331,6 +332,16 @@ def shop():
         except Exception:
             app.logger.exception("Erreur envoi notification admin Telegram")
             # On ne bloque pas l'utilisateur si Telegram échoue
+        telegram_target = resolve_telegram_id(user_id)
+        if telegram_target:
+            try:
+                bot_user.send_message(
+                    telegram_target,
+                    "🧾 **Commande reçue !**\nVotre demande d'achat est en attente de validation.",
+                    parse_mode="Markdown"
+                )
+            except Exception:
+                app.logger.exception("Erreur envoi notification utilisateur Telegram")
         flash("Demande envoyée à l'administrateur (via Telegram).", "success")
         return redirect(url_for('shop'))
 

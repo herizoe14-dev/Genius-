@@ -1,4 +1,4 @@
-import telebot, config, threading, json, os, re
+import telebot, config, threading, json, os, re, auth
 from telebot import types 
 from limiteur import add_credits
 
@@ -22,6 +22,30 @@ def log_admin_action(action, user_id, details=""):
             f.write(json.dumps(log_entry) + "\n")
     except Exception:
         pass
+
+def is_valid_user_identifier(user_id):
+    """Valide un identifiant utilisateur (Telegram ID ou username web)."""
+    user_id = str(user_id).strip()
+    if not user_id:
+        return False
+    if re.match(r'^[0-9]+$', user_id):
+        return True
+    return re.match(r'^[a-zA-Z0-9_-]{3,30}$', user_id) is not None
+
+def resolve_telegram_id(user_id):
+    """Résout l'ID Telegram depuis un username web ou un ID Telegram direct."""
+    user_id = str(user_id).strip()
+    if not user_id:
+        return None
+    try:
+        data = auth.load_auth_data()
+    except Exception:
+        data = {}
+    users = data.get("users", {})
+    if user_id in users:
+        telegram_id = str(users[user_id].get("telegram_id", "")).strip()
+        return telegram_id if telegram_id.isdigit() else None
+    return user_id if user_id.isdigit() else None
 
 # --- FONCTION POUR LIRE LE JSON ---
 def get_maintenance_config():
@@ -92,9 +116,12 @@ def process_admin_actions(call):
         count = 0
         for u_id in data.keys():
             try:
+                target_id = resolve_telegram_id(u_id)
+                if not target_id:
+                    continue
                 markup = types.InlineKeyboardMarkup()
                 markup.add(types.InlineKeyboardButton("💬 REJOINDRE LA DISCUSSION", url=url_link))
-                bot_user.send_message(u_id, msg_text, reply_markup=markup, parse_mode="Markdown")
+                bot_user.send_message(target_id, msg_text, reply_markup=markup, parse_mode="Markdown")
                 count += 1
             except: continue
         bot_admin.answer_callback_query(call.id, f"✅ Envoyé à {count} personnes")
@@ -110,7 +137,7 @@ def process_admin_actions(call):
         action, u_id = parts[0], parts[1]
         
         # Validation de l'user_id
-        if not re.match(r'^[0-9]+$', u_id):
+        if not is_valid_user_identifier(u_id):
             bot_admin.answer_callback_query(call.id, "❌ ID utilisateur invalide")
             return
         
@@ -122,19 +149,25 @@ def process_admin_actions(call):
             amount = 10 if "10" in pack else 50 if "50" in pack else 100
             add_credits(u_id, amount)
             bot_admin.edit_message_text(f"✅ Validé (+{amount}) pour {u_id}", call.message.chat.id, call.message.message_id)
-            bot_user.send_message(u_id, f"🎉 **Achat validé !** +{amount} crédits ajoutés.")
+            target_id = resolve_telegram_id(u_id)
+            if target_id:
+                bot_user.send_message(target_id, f"🎉 **Achat validé !** +{amount} crédits ajoutés.", parse_mode="Markdown")
             log_admin_action("approve_purchase", u_id, f"+{amount} crédits")
         
         elif action == "admin_off":
             markup = types.InlineKeyboardMarkup()
             markup.add(types.InlineKeyboardButton("💬 REJOINDRE LA DISCUSSION", url=url_link))
             bot_admin.edit_message_text(f"🚫 Info maintenance envoyée à {u_id}", call.message.chat.id, call.message.message_id)
-            bot_user.send_message(u_id, msg_text, reply_markup=markup, parse_mode="Markdown")
+            target_id = resolve_telegram_id(u_id)
+            if target_id:
+                bot_user.send_message(target_id, msg_text, reply_markup=markup, parse_mode="Markdown")
             log_admin_action("send_maintenance", u_id, "Notification de maintenance")
         
         elif action == "admin_no":
             bot_admin.edit_message_text(f"❌ Refusé pour {u_id}", call.message.chat.id, call.message.message_id)
-            bot_user.send_message(u_id, "❌ Votre demande d'achat a été refusée.")
+            target_id = resolve_telegram_id(u_id)
+            if target_id:
+                bot_user.send_message(target_id, "❌ Votre demande d'achat a été refusée.")
             log_admin_action("reject_purchase", u_id, "Achat refusé")
 
 # --- NOTIFICATIONS (INCHANGÉES) ---

@@ -73,6 +73,19 @@ body{
   border:1px solid rgba(255,255,255,0.02);
 }
 
+.muted{ color:var(--muted-text); font-size:0.95rem }
+.error{ color:var(--danger); margin-top:10px; font-weight:600 }
+.actions{
+  display:flex;
+  flex-wrap:wrap;
+  gap:12px;
+  margin-top:16px;
+}
+.actions .btn{
+  flex:1 1 220px;
+  text-align:center;
+}
+
 /* Inputs & Buttons */
 input[type="text"], input[type="email"], input[type="password"], select{
   width:100%; padding:12px; margin:8px 0 12px; background:transparent; color:var(--text);
@@ -140,4 +153,5 @@ button.danger{ background:linear-gradient(90deg, #ff8a8a, #ff5b5b); color:white 
   input{ padding:14px }
   .btn{ width:100%; display:block }
   .sidebar{ width:78%; max-width:320px } /* slightly narrower on mobile */
+  .actions{ flex-direction:column }
 }
