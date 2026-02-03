@@ -28,7 +28,15 @@ def register_boutique_handlers(bot):
     @bot.callback_query_handler(func=lambda call: call.data.startswith("buy_"))
     def handle_purchase(call):
         user = call.from_user
-        pack_name = call.data.replace("buy_", "").upper()
+        pack_raw = call.data.replace("buy_", "").upper()
+        
+        # SÉCURITÉ : Validation du pack
+        valid_packs = ["10", "50", "100", "PREMIUM"]
+        if pack_raw not in valid_packs:
+            bot.answer_callback_query(call.id, "❌ Pack invalide")
+            return
+        
+        pack_name = pack_raw
         
         # 1. Message d'attente pour l'utilisateur sur le Bot 1
         bot.answer_callback_query(call.id)

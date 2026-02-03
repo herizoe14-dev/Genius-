@@ -1,0 +1,22 @@
+# Requirements for Genius Bot Application
+# Install with: pip install -r requirements.txt
+
+# Web Framework
+Flask>=3.0.0
+Werkzeug>=3.0.0
+
+# Telegram Bot
+pyTelegramBotAPI>=4.14.0
+
+# Environment Variables
+python-dotenv>=1.0.0
+
+# YouTube Downloader (system dependency)
+# Install separately: pip install yt-dlp
+yt-dlp>=2023.12.30
+
+# Note: ffmpeg is also required for audio conversion
+# Install ffmpeg from your system package manager
+# Ubuntu/Debian: sudo apt-get install ffmpeg
+# MacOS: brew install ffmpeg
+# Windows: Download from ffmpeg.org

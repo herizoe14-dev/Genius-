@@ -301,7 +301,9 @@ def shop():
 
     if request.method == 'POST':
         user_id = session['user_id']
-        pack = request.form.get('pack')
+        pack = request.form.get('pack', '').strip()
+        
+        # SÉCURITÉ : Validation stricte du pack
         if pack not in ("10", "50", "100"):
             flash("Pack invalide", "danger")
             return redirect(url_for('shop'))

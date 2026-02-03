@@ -1,6 +1,13 @@
 # --- CONFIGURATION CENTRALISÉE ---
 import os
 
+# Charger les variables d'environnement depuis .env si disponible
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass  # python-dotenv n'est pas installé, on utilise les variables d'environnement système
+
 # SÉCURITÉ : Utilisation de variables d'environnement pour les tokens sensibles
 # Variables attendue par ytt.py
 API_TOKEN = os.getenv("API_TOKEN", "8371092102:AAEejzC1RrSCuv0knFRsTtKTDnWWp86AcWo")
