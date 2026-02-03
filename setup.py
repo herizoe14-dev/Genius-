@@ -51,6 +51,8 @@ def main():
     print()
     print("   💡 Pour trouver votre ADMIN_ID:")
     print("      - Contactez @userinfobot sur Telegram")
+    print("      - Ou @getmyid_bot comme alternative")
+    print("      - Ou transférez un message à @JsonDumpBot")
     print("      - Il vous donnera votre ID numérique")
     print()
     print("   💡 Pour générer une clé secrète Flask:")

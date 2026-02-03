@@ -18,7 +18,7 @@ python setup.py
 python ytt.py
 ```
 
-> ⚠️ **Important**: Vous devez configurer votre fichier `.env` avant de lancer l'application. Sans configuration, vous verrez l'erreur "Variable d'environnement API_TOKEN manquante".
+> ⚠️ **Important**: Vous devez configurer votre fichier `.env` avant de lancer l'application. Sans configuration, vous verrez une erreur indiquant que les variables d'environnement sont manquantes.
 
 ## 🔒 Améliorations de Sécurité
 
