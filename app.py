@@ -26,7 +26,7 @@ app.secret_key = os.getenv("FLASK_SECRET", "genius_ultra_secret_key")
 
 # Cookies sécurisés (bien que pour être utiles il faut HTTPS en prod)
 app.config.update(
-    SESSION_COOKIE_SECURE=True,
+    SESSION_COOKIE_SECURE=False,  # Set to True in production with HTTPS
     SESSION_COOKIE_HTTPONLY=True,
     SESSION_COOKIE_SAMESITE='Lax'
 )
