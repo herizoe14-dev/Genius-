@@ -17,11 +17,25 @@ def get_required_env(var_name, dev_default=None):
     if not value:
         if dev_default and os.getenv("FLASK_ENV") == "development":
             print(f"⚠️  AVERTISSEMENT: Utilisation de la valeur par défaut pour {var_name}")
-            print(f"⚠️  Configurez .env en production!")
+            print("⚠️  Configurez .env en production!")
             return dev_default
         else:
             print(f"❌ ERREUR: Variable d'environnement {var_name} manquante!")
-            print(f"💡 Créez un fichier .env basé sur .env.example")
+            print("")
+            print("💡 Pour configurer le bot, suivez ces étapes:")
+            print("")
+            print("   1. Copiez le fichier .env.example en .env :")
+            print("      cp .env.example .env")
+            print("")
+            print("   2. Éditez le fichier .env avec vos tokens:")
+            print("      nano .env   (ou utilisez votre éditeur préféré)")
+            print("")
+            print("   3. Obtenez votre token bot Telegram auprès de @BotFather")
+            print("")
+            print("   💡 Mode développement: définissez FLASK_ENV=development")
+            print("      pour utiliser les tokens de test temporairement:")
+            print("      export FLASK_ENV=development && python ytt.py")
+            print("")
             sys.exit(1)
     return value
 
