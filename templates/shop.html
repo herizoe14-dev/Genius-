@@ -2,18 +2,33 @@
 {% block content %}
 <div class="card">
   <h2>🛒 Boutique</h2>
+  <p class="muted" style="margin-bottom:16px;">Sélectionnez un pack de crédits pour vos téléchargements.</p>
   <form method="post">
-    <label>
-      <input type="radio" name="pack" value="10" checked> Pack Bronze — 10 Crédits
-    </label><br>
-    <label>
-      <input type="radio" name="pack" value="50"> Pack Argent — 50 Crédits
-    </label><br>
-    <label>
-      <input type="radio" name="pack" value="100"> Pack Or — 100 Crédits
-    </label><br><br>
-    <button type="submit">Commander</button>
+    <div class="pack-options">
+      <label class="pack-option">
+        <input type="radio" name="pack" value="10" checked>
+        <span class="pack-card">
+          <span class="pack-name">🥉 Pack Bronze</span>
+          <span class="pack-credits">10 Crédits</span>
+        </span>
+      </label>
+      <label class="pack-option">
+        <input type="radio" name="pack" value="50">
+        <span class="pack-card">
+          <span class="pack-name">🥈 Pack Argent</span>
+          <span class="pack-credits">50 Crédits</span>
+        </span>
+      </label>
+      <label class="pack-option">
+        <input type="radio" name="pack" value="100">
+        <span class="pack-card">
+          <span class="pack-name">🥇 Pack Or</span>
+          <span class="pack-credits">100 Crédits</span>
+        </span>
+      </label>
+    </div>
+    <button type="submit" style="margin-top:20px;">Commander</button>
   </form>
-  <p class="muted">Ta commande sera envoyée à l'administrateur pour validation.</p>
+  <p class="muted" style="margin-top:16px;">Ta commande sera envoyée à l'administrateur pour validation.</p>
 </div>
 {% endblock %}

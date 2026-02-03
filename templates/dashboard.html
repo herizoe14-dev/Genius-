@@ -1,26 +1,20 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="card">
-  <h2>👋 Bienvenue</h2>
-  <p><strong>ID :</strong> {{ user_id }}</p>
-  <p><strong>Crédits :</strong> {{ user.credits }}</p>
-  <p><strong>Expiration :</strong> {{ user.expiration }}</p>
+<div class="card welcome-card">
+  <h2>👋 Bienvenue, <span class="highlight">{{ user_id }}</span></h2>
+  <div class="stats-grid">
+    <div class="stat-box">
+      <span class="stat-label">Crédits</span>
+      <span class="stat-value">{{ user.credits }}</span>
+    </div>
+    <div class="stat-box">
+      <span class="stat-label">Expiration</span>
+      <span class="stat-value">{{ user.expiration }}</span>
+    </div>
+  </div>
   <div class="actions">
-    <a class="btn" href="{{ url_for('download_page') }}">Télécharger un média</a>
-    <a class="btn" href="{{ url_for('shop') }}">Aller à la boutique</a>
+    <a class="btn" href="{{ url_for('download_page') }}">📥 Télécharger un média</a>
+    <a class="btn btn-secondary" href="{{ url_for('shop') }}">🛒 Aller à la boutique</a>
   </div>
 </div>
-{% if notifications %}
-<div class="card notifications">
-  <h3>🔔 Notifications</h3>
-  <ul class="notification-list">
-    {% for notif in notifications %}
-      <li class="notification-item {{ notif.level }}">
-        <div class="notification-message">{{ notif.message }}</div>
-        {% if notif.time %}<div class="notification-time">{{ notif.time }}</div>{% endif %}
-      </li>
-    {% endfor %}
-  </ul>
-</div>
-{% endif %}
 {% endblock %}

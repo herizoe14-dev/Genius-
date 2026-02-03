@@ -131,6 +131,19 @@ def apply_security_headers(response):
 
 app.after_request(apply_security_headers)
 
+# === Context processor for notifications (available in all templates) ===
+@app.context_processor
+def inject_notifications():
+    """Inject notifications into all templates for the notification bell."""
+    if 'user_id' in session:
+        user_id = session['user_id']
+        notifications = get_notifications(user_id)
+        return {
+            'notifications': notifications,
+            'notifications_count': len(notifications) if notifications else 0
+        }
+    return {'notifications': [], 'notifications_count': 0}
+
 # === Helpers ===
 def get_client_ip():
     # Si derrière proxy, ajuste ou utilises ProxyFix en prod.
