@@ -14,14 +14,16 @@ def resolve_telegram_id(user_id):
     """Resolve a Telegram chat ID from a numeric ID or auth user key; return int or None."""
     user_str = str(user_id).strip()
     if user_str.isdigit():
-        return int(user_str)
+        value = int(user_str)
+        return value if value > 0 else None
     try:
         auth_data = auth.load_auth_data()
     except (FileNotFoundError, json.JSONDecodeError, OSError):
         return None
     telegram_id = auth_data.get("users", {}).get(user_str, {}).get("telegram_id", "")
     if str(telegram_id).isdigit():
-        return int(telegram_id)
+        value = int(telegram_id)
+        return value if value > 0 else None
     return None
 
 def get_maintenance_recipients():
@@ -64,7 +66,13 @@ def parse_pack_amount(pack_value):
     digits = "".join(ch for ch in pack_str if ch.isdigit())
     if digits in ("10", "50", "100"):
         return int(digits)
-    print(f"Pack inconnu '{pack_value}', crédits par défaut appliqués.")
+    try:
+        bot_admin.send_message(
+            config.ADMIN_ID,
+            f"⚠️ Pack inconnu '{pack_value}', crédits par défaut appliqués.",
+        )
+    except telebot.apihelper.ApiTelegramException:
+        print(f"Pack inconnu '{pack_value}', crédits par défaut appliqués.")
     return 100
 
 # --- FONCTION POUR LIRE LE JSON ---

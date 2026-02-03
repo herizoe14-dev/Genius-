@@ -156,7 +156,7 @@ label{ display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
   .container{ padding:12px }
   .card{ border-radius:12px }
   input{ padding:14px }
-  .btn, button{ width:100%; display:block }
+  form button, .btn{ width:100%; display:block }
   .table{ display:block; overflow-x:auto; }
   .sidebar{ width:78%; max-width:320px } /* slightly narrower on mobile */
 }
