@@ -22,6 +22,14 @@ def get_required_env(var_name, dev_default=None):
         else:
             print(f"❌ ERREUR: Variable d'environnement {var_name} manquante!")
             print(f"💡 Créez un fichier .env basé sur .env.example")
+            print()
+            print(f"📋 Instructions rapides:")
+            print(f"   1. cp .env.example .env")
+            print(f"   2. Editez .env avec vos tokens Telegram")
+            print(f"   3. Relancez: python ytt.py")
+            print()
+            print(f"🔧 Mode développement (tokens par défaut):")
+            print(f"   export FLASK_ENV=development && python ytt.py")
             sys.exit(1)
     return value
 
