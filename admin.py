@@ -1,9 +1,12 @@
+import json
+import logging
+import os
+import threading
+
+import telebot
+
 import auth
 import config
-import json
-import os
-import telebot
-import threading
 from telebot import types 
 from limiteur import add_credits
 
@@ -66,13 +69,12 @@ def parse_pack_amount(pack_value):
     digits = "".join(ch for ch in pack_str if ch.isdigit())
     if digits in ("10", "50", "100"):
         return int(digits)
+    message = f"Pack inconnu '{pack_value}', crédits par défaut appliqués."
+    logging.warning(message)
     try:
-        bot_admin.send_message(
-            config.ADMIN_ID,
-            f"⚠️ Pack inconnu '{pack_value}', crédits par défaut appliqués.",
-        )
+        bot_admin.send_message(config.ADMIN_ID, f"⚠️ {message}")
     except telebot.apihelper.ApiTelegramException:
-        print(f"Pack inconnu '{pack_value}', crédits par défaut appliqués.")
+        logging.warning("Notification admin Telegram échouée pour le pack inconnu.")
     return 100
 
 # --- FONCTION POUR LIRE LE JSON ---

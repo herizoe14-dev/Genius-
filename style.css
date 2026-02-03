@@ -78,7 +78,10 @@ input[type="text"], input[type="email"], input[type="password"], select{
   width:100%; padding:12px; margin:8px 0 12px; background:transparent; color:var(--text);
   border:1px solid rgba(255,255,255,0.04); border-radius:10px; outline:none;
 }
-input[type="radio"]{ accent-color: var(--accent); }
+input[type="radio"]{
+  accent-color: var(--accent);
+  border: 1px solid rgba(255,255,255,0.2);
+}
 input::placeholder{ color: rgba(223,250,240,0.45) }
 button, .btn{
   background: linear-gradient(90deg, var(--accent), var(--accent-2));
