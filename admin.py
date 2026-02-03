@@ -1,12 +1,28 @@
-import telebot, config, threading, json, os, re, auth
+import json
+import os
+import re
+import threading
+
+import telebot
+
+import auth
+import config
 from telebot import types 
 from limiteur import add_credits
 
 bot_admin = telebot.TeleBot(config.TOKEN_BOT_ADMIN)
 bot_user = telebot.TeleBot(config.TOKEN_BOT_USER)
 
+# --- Helpers ---
+
 # SÉCURITÉ : Log des actions admin pour audit
 ADMIN_LOG = "admin_actions.log"
+MIN_USERNAME_LENGTH = 3
+MAX_USERNAME_LENGTH = 30
+TELEGRAM_ID_PATTERN = re.compile(r'^[0-9]+$')  # Telegram numeric IDs
+WEB_USERNAME_PATTERN = re.compile(
+    r'^[a-zA-Z0-9_-]{%d,%d}$' % (MIN_USERNAME_LENGTH, MAX_USERNAME_LENGTH)
+)  # Web usernames
 
 def log_admin_action(action, user_id, details=""):
     """Enregistre toutes les actions admin pour audit."""
@@ -23,29 +39,56 @@ def log_admin_action(action, user_id, details=""):
     except Exception:
         pass
 
+def send_telegram_message(bot, target_id, text, log_context=None, log_func=None, **kwargs):
+    """Send a Telegram message and handle delivery errors."""
+    if not target_id:
+        return False
+    try:
+        bot.send_message(target_id, text, **kwargs)
+        return True
+    except Exception as exc:
+        if log_func:
+            log_func(f"Erreur envoi {log_context or 'Telegram'}")
+        else:
+            context = log_context or "telegram_send"
+            log_admin_action("telegram_send_error", target_id or "unknown", f"{context}: {exc}")
+        return False
+
+def normalize_user_id(user_id):
+    """Normalize a user identifier (str + trim, empty if None)."""
+    return str(user_id).strip() if user_id is not None else ""
+
+def is_valid_telegram_id(telegram_id):
+    """Validate a Telegram identifier."""
+    telegram_id = normalize_user_id(telegram_id)
+    return bool(TELEGRAM_ID_PATTERN.match(telegram_id))
+
+def get_valid_telegram_id(telegram_id):
+    """Return the normalized Telegram ID if valid."""
+    telegram_id = normalize_user_id(telegram_id)
+    return telegram_id if is_valid_telegram_id(telegram_id) else None
+
 def is_valid_user_identifier(user_id):
-    """Valide un identifiant utilisateur (Telegram ID ou username web)."""
-    user_id = str(user_id).strip()
+    """Validate a user identifier (Telegram ID or web username)."""
+    user_id = normalize_user_id(user_id)
     if not user_id:
         return False
-    if re.match(r'^[0-9]+$', user_id):
-        return True
-    return re.match(r'^[a-zA-Z0-9_-]{3,30}$', user_id) is not None
+    return TELEGRAM_ID_PATTERN.match(user_id) or WEB_USERNAME_PATTERN.match(user_id)
 
 def resolve_telegram_id(user_id):
-    """Résout l'ID Telegram depuis un username web ou un ID Telegram direct."""
-    user_id = str(user_id).strip()
+    """Resolve Telegram ID from a web username or direct Telegram ID."""
+    user_id = normalize_user_id(user_id)
     if not user_id:
         return None
     try:
         data = auth.load_auth_data()
-    except Exception:
+    except (FileNotFoundError, json.JSONDecodeError, OSError) as exc:
+        log_admin_action("resolve_telegram_id_error", user_id or "unknown", str(exc))
         data = {}
     users = data.get("users", {})
     if user_id in users:
-        telegram_id = str(users[user_id].get("telegram_id", "")).strip()
-        return telegram_id if telegram_id.isdigit() else None
-    return user_id if user_id.isdigit() else None
+        return get_valid_telegram_id(users[user_id].get("telegram_id"))
+    return get_valid_telegram_id(user_id)
 
 # --- FONCTION POUR LIRE LE JSON ---
 def get_maintenance_config():
@@ -121,9 +164,17 @@ def process_admin_actions(call):
                     continue
                 markup = types.InlineKeyboardMarkup()
                 markup.add(types.InlineKeyboardButton("💬 REJOINDRE LA DISCUSSION", url=url_link))
-                bot_user.send_message(target_id, msg_text, reply_markup=markup, parse_mode="Markdown")
+                send_telegram_message(
+                    bot_user,
+                    target_id,
+                    msg_text,
+                    log_context="broadcast_maintenance",
+                    reply_markup=markup,
+                    parse_mode="Markdown"
+                )
                 count += 1
-            except: continue
+            except Exception:
+                continue
         bot_admin.answer_callback_query(call.id, f"✅ Envoyé à {count} personnes")
         log_admin_action("broadcast", "all", f"{count} utilisateurs notifiés")
 
@@ -150,8 +201,13 @@ def process_admin_actions(call):
             add_credits(u_id, amount)
             bot_admin.edit_message_text(f"✅ Validé (+{amount}) pour {u_id}", call.message.chat.id, call.message.message_id)
             target_id = resolve_telegram_id(u_id)
-            if target_id:
-                bot_user.send_message(target_id, f"🎉 **Achat validé !** +{amount} crédits ajoutés.", parse_mode="Markdown")
+            send_telegram_message(
+                bot_user,
+                target_id,
+                f"🎉 **Achat validé !** +{amount} crédits ajoutés.",
+                log_context="purchase_approved",
+                parse_mode="Markdown"
+            )
             log_admin_action("approve_purchase", u_id, f"+{amount} crédits")
         
         elif action == "admin_off":
@@ -159,15 +215,25 @@ def process_admin_actions(call):
             markup.add(types.InlineKeyboardButton("💬 REJOINDRE LA DISCUSSION", url=url_link))
             bot_admin.edit_message_text(f"🚫 Info maintenance envoyée à {u_id}", call.message.chat.id, call.message.message_id)
             target_id = resolve_telegram_id(u_id)
-            if target_id:
-                bot_user.send_message(target_id, msg_text, reply_markup=markup, parse_mode="Markdown")
+            send_telegram_message(
+                bot_user,
+                target_id,
+                msg_text,
+                log_context="maintenance_notice",
+                reply_markup=markup,
+                parse_mode="Markdown"
+            )
             log_admin_action("send_maintenance", u_id, "Notification de maintenance")
         
         elif action == "admin_no":
             bot_admin.edit_message_text(f"❌ Refusé pour {u_id}", call.message.chat.id, call.message.message_id)
             target_id = resolve_telegram_id(u_id)
-            if target_id:
-                bot_user.send_message(target_id, "❌ Votre demande d'achat a été refusée.")
+            send_telegram_message(
+                bot_user,
+                target_id,
+                "❌ Votre demande d'achat a été refusée.",
+                log_context="purchase_rejected"
+            )
             log_admin_action("reject_purchase", u_id, "Achat refusé")
 
 # --- NOTIFICATIONS (INCHANGÉES) ---

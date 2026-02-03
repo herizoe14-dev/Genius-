@@ -73,8 +73,8 @@ body{
   border:1px solid rgba(255,255,255,0.02);
 }
 
-.muted{ color:var(--muted-text); font-size:0.95rem }
-.error{ color:var(--danger); margin-top:10px; font-weight:600 }
+.muted{ color: var(--muted-text); font-size: 0.95rem; }
+.error{ color: var(--danger); margin-top: 10px; font-weight: 600; }
 .actions{
   display:flex;
   flex-wrap:wrap;
