@@ -352,7 +352,7 @@ def shop():
             parse_mode="Markdown"
         )
         telegram_target = resolve_telegram_id(user_id)
-        user_notified = send_telegram_message(
+        send_telegram_message(
             bot_user,
             telegram_target,
             "🧾 **Commande reçue !**\nVotre demande d'achat est en attente de validation.",
@@ -360,12 +360,12 @@ def shop():
             log_func=app.logger.exception,
             parse_mode="Markdown"
         )
-        if not user_notified:
-            add_notification(
-                user_id,
-                "🧾 Commande reçue. Votre demande d'achat est en attente de validation.",
-                level="info"
-            )
+        # Always add web notification so users without Telegram see it on the site
+        add_notification(
+            user_id,
+            "🧾 Commande reçue. Votre demande d'achat est en attente de validation.",
+            level="info"
+        )
         flash("Demande envoyée à l'administrateur.", "success")
         return redirect(url_for('shop'))
 
