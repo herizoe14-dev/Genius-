@@ -158,6 +158,8 @@ def login():
             record_login_attempt(ip)
             if ok:
                 session['user_id'] = username
+                # Set admin flag if username is 'admin' or in admin list
+                session['is_admin'] = username.lower() == 'admin'
                 flash("Connecté avec succès.", "success")
                 return redirect(url_for('home'))
             else:
@@ -264,6 +266,173 @@ def shop():
         return redirect(url_for('shop'))
 
     return render_template("shop.html")
+
+# === Page Crédits/À propos ===
+@app.route('/credits')
+def credits_page():
+    return render_template("credits.html")
+
+# === Panel d'Administration ===
+@app.route('/admin', methods=['GET', 'POST'])
+def admin_panel():
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+    
+    # Check if user is admin (you can customize this logic)
+    # For now, we'll check if the user_id matches a specific admin username
+    user_id = session['user_id']
+    is_admin = user_id == 'admin' or session.get('is_admin', False)
+    
+    if not is_admin:
+        flash("Accès refusé. Vous devez être administrateur.", "danger")
+        return render_template("admin.html", is_admin=False)
+    
+    # Handle POST requests for admin actions
+    if request.method == 'POST':
+        action = request.form.get('action')
+        
+        if action == 'add_credits':
+            username = request.form.get('username')
+            amount = int(request.form.get('amount', 0))
+            if username and amount > 0:
+                if add_credits(username, amount):
+                    flash(f"✅ {amount} crédits ajoutés à {username}", "success")
+                else:
+                    flash(f"❌ Erreur lors de l'ajout de crédits pour {username}", "danger")
+        
+        elif action == 'approve_purchase':
+            username = request.form.get('username')
+            pack = request.form.get('pack')
+            amount = int(pack) if pack else 0
+            if username and amount > 0:
+                if add_credits(username, amount):
+                    # Remove from pending log
+                    try:
+                        with pending_lock:
+                            if os.path.exists(PENDING_LOG):
+                                lines = []
+                                with open(PENDING_LOG, 'r', encoding='utf-8') as f:
+                                    lines = f.readlines()
+                                with open(PENDING_LOG, 'w', encoding='utf-8') as f:
+                                    for line in lines:
+                                        try:
+                                            entry = json.loads(line.strip())
+                                            if entry.get('user') != username or entry.get('pack') != pack:
+                                                f.write(line)
+                                        except:
+                                            f.write(line)
+                    except Exception as e:
+                        app.logger.exception("Erreur lors de la mise à jour du log")
+                    
+                    # Notify user via Telegram bot
+                    try:
+                        bot_user.send_message(username, f"🎉 **Achat validé !** +{amount} crédits ajoutés.", parse_mode="Markdown")
+                    except:
+                        pass
+                    
+                    flash(f"✅ Achat approuvé pour {username} (+{amount} crédits)", "success")
+                else:
+                    flash(f"❌ Erreur lors de l'approbation de l'achat", "danger")
+        
+        elif action == 'reject_purchase':
+            username = request.form.get('username')
+            # Remove from pending log
+            try:
+                with pending_lock:
+                    if os.path.exists(PENDING_LOG):
+                        lines = []
+                        with open(PENDING_LOG, 'r', encoding='utf-8') as f:
+                            lines = f.readlines()
+                        with open(PENDING_LOG, 'w', encoding='utf-8') as f:
+                            for line in lines:
+                                try:
+                                    entry = json.loads(line.strip())
+                                    if entry.get('user') != username:
+                                        f.write(line)
+                                except:
+                                    f.write(line)
+            except Exception as e:
+                app.logger.exception("Erreur lors de la mise à jour du log")
+            
+            # Notify user via Telegram bot
+            try:
+                bot_user.send_message(username, "❌ Votre demande d'achat a été refusée.", parse_mode="Markdown")
+            except:
+                pass
+            
+            flash(f"❌ Achat refusé pour {username}", "success")
+        
+        elif action == 'broadcast':
+            message = request.form.get('message', '').strip()
+            if message:
+                # Load all users
+                data = {}
+                if os.path.exists(DATA_FILE):
+                    with open(DATA_FILE, "r", encoding="utf-8") as f:
+                        data = json.load(f)
+                
+                count = 0
+                for uid in data.keys():
+                    try:
+                        bot_user.send_message(uid, f"📢 **Message de l'administrateur**\n\n{message}", parse_mode="Markdown")
+                        count += 1
+                    except:
+                        continue
+                
+                flash(f"📤 Message envoyé à {count} utilisateurs", "success")
+        
+        return redirect(url_for('admin_panel'))
+    
+    # Load statistics and data for GET request
+    stats = {
+        'total_users': 0,
+        'total_credits': 0,
+        'pending_purchases': 0
+    }
+    
+    users_list = []
+    pending_purchases = []
+    
+    # Load users data
+    if os.path.exists(DATA_FILE):
+        with open(DATA_FILE, "r", encoding="utf-8") as f:
+            data = json.load(f)
+            stats['total_users'] = len(data)
+            stats['total_credits'] = sum(u.get('credits', 0) for u in data.values())
+            
+            for username, user_info in data.items():
+                users_list.append({
+                    'username': username,
+                    'credits': user_info.get('credits', 0),
+                    'expiration': user_info.get('expiration', 'N/A'),
+                    'statut': user_info.get('statut', 'Actif')
+                })
+    
+    # Load pending purchases
+    if os.path.exists(PENDING_LOG):
+        with pending_lock:
+            with open(PENDING_LOG, 'r', encoding='utf-8') as f:
+                for line in f:
+                    try:
+                        entry = json.loads(line.strip())
+                        from datetime import datetime
+                        ts = entry.get('ts', 0)
+                        timestamp_str = datetime.fromtimestamp(ts).strftime('%Y-%m-%d %H:%M:%S') if ts else 'N/A'
+                        pending_purchases.append({
+                            'user': entry.get('user', 'Unknown'),
+                            'pack': entry.get('pack', 'Unknown'),
+                            'timestamp': timestamp_str
+                        })
+                    except:
+                        continue
+    
+    stats['pending_purchases'] = len(pending_purchases)
+    
+    return render_template("admin.html", 
+                         is_admin=True, 
+                         stats=stats, 
+                         users=users_list, 
+                         pending=pending_purchases)
 
 # === Run ===
 if __name__ == '__main__':

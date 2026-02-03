@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="card">
+  <h2>ℹ️ À propos de Genius Bot</h2>
+  <div style="line-height: 1.8;">
+    <p><strong>Genius Bot</strong> est une plateforme de téléchargement de contenus multimédias développée pour offrir une expérience simple et efficace.</p>
+    
+    <h3>🎯 Fonctionnalités</h3>
+    <ul>
+      <li>📥 Téléchargement de vidéos et audios depuis YouTube</li>
+      <li>🎵 Conversion automatique en MP3</li>
+      <li>🎥 Téléchargement en qualité MP4</li>
+      <li>💎 Système de crédits pour gérer les téléchargements</li>
+      <li>🛒 Boutique intégrée pour acheter des crédits</li>
+      <li>👤 Gestion de compte utilisateur</li>
+    </ul>
+
+    <h3>💳 Système de crédits</h3>
+    <p>Chaque téléchargement consomme 1 crédit. Les nouveaux utilisateurs reçoivent <strong>50 crédits gratuits</strong> à l'inscription, valables 30 jours.</p>
+    
+    <h3>🛒 Packs disponibles</h3>
+    <ul>
+      <li>🥉 Pack Bronze : 10 crédits</li>
+      <li>🥈 Pack Argent : 50 crédits</li>
+      <li>🥇 Pack Or : 100 crédits</li>
+    </ul>
+
+    <h3>🔒 Sécurité</h3>
+    <p>Genius Bot utilise des mesures de sécurité avancées :</p>
+    <ul>
+      <li>Mots de passe hashés (bcrypt)</li>
+      <li>Protection anti-brute-force</li>
+      <li>Limitation de taux par IP</li>
+      <li>En-têtes de sécurité HTTP</li>
+      <li>Sessions sécurisées</li>
+    </ul>
+
+    <h3>📞 Support</h3>
+    <p>Pour toute question ou problème, contactez l'administrateur via Telegram.</p>
+    
+    <div style="margin-top: 30px; text-align: center;">
+      <small style="color: #666;">© 2024 Genius Bot - Tous droits réservés</small>
+    </div>
+  </div>
+</div>
+{% endblock %}

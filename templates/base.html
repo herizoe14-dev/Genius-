@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <title>Genius Bot - Web</title>
-  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
   <meta name="theme-color" content="#06231f">
 </head>
 <body>
@@ -22,6 +22,10 @@
         <a href="{{ url_for('home') }}" class="side-link">Dashboard</a>
         <a href="{{ url_for('download_page') }}" class="side-link">Télécharger</a>
         <a href="{{ url_for('shop') }}" class="side-link">Boutique</a>
+        <a href="{{ url_for('credits_page') }}" class="side-link">À propos</a>
+        {% if session.get('is_admin') %}
+          <a href="{{ url_for('admin_panel') }}" class="side-link" style="color: #d4af37;">👑 Admin</a>
+        {% endif %}
         <a href="{{ url_for('logout') }}" class="side-link logout">Se déconnecter</a>
       {% else %}
         <a href="{{ url_for('login') }}" class="side-link">Connexion</a>
@@ -54,6 +58,10 @@
         <a class="top-link" href="{{ url_for('home') }}">Dashboard</a>
         <a class="top-link" href="{{ url_for('download_page') }}">Télécharger</a>
         <a class="top-link" href="{{ url_for('shop') }}">Boutique</a>
+        <a class="top-link" href="{{ url_for('credits_page') }}">À propos</a>
+        {% if session.get('is_admin') %}
+          <a class="top-link" href="{{ url_for('admin_panel') }}" style="color: #d4af37;">👑 Admin</a>
+        {% endif %}
         <a class="top-link" href="{{ url_for('logout') }}">Se déconnecter</a>
       {% else %}
         <a class="top-link" href="{{ url_for('login') }}">Connexion</a>
@@ -80,6 +88,6 @@
     <small>© Genius Bot • Intégration Web</small>
   </footer>
 
-  <script src="{{ url_for('static', filename='script.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/script.js') }}"></script>
 </body>
 </html>

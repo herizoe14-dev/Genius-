@@ -1,0 +1,135 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="card">
+  <h2>👑 Panel d'Administration</h2>
+  
+  {% if not is_admin %}
+    <div class="error">
+      <p>❌ Accès refusé. Vous devez être administrateur pour accéder à cette page.</p>
+      <a href="{{ url_for('home') }}" class="btn">Retour au Dashboard</a>
+    </div>
+  {% else %}
+    
+    <!-- Statistics Overview -->
+    <div style="margin: 20px 0;">
+      <h3>📊 Statistiques Globales</h3>
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin: 15px 0;">
+        <div style="background: #0a3d35; padding: 15px; border-radius: 8px;">
+          <div style="font-size: 24px; font-weight: bold;">{{ stats.total_users }}</div>
+          <div style="color: #a0a0a0; font-size: 14px;">👥 Utilisateurs totaux</div>
+        </div>
+        <div style="background: #0a3d35; padding: 15px; border-radius: 8px;">
+          <div style="font-size: 24px; font-weight: bold;">{{ stats.total_credits }}</div>
+          <div style="color: #a0a0a0; font-size: 14px;">💎 Crédits en circulation</div>
+        </div>
+        <div style="background: #0a3d35; padding: 15px; border-radius: 8px;">
+          <div style="font-size: 24px; font-weight: bold;">{{ stats.pending_purchases }}</div>
+          <div style="color: #a0a0a0; font-size: 14px;">🛒 Achats en attente</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- User Management -->
+    <div style="margin: 30px 0;">
+      <h3>👥 Gestion des Utilisateurs</h3>
+      {% if users %}
+        <div style="overflow-x: auto;">
+          <table style="width: 100%; border-collapse: collapse; margin-top: 15px;">
+            <thead style="background: #0a3d35;">
+              <tr>
+                <th style="padding: 12px; text-align: left; border-bottom: 2px solid #0f6e5f;">Utilisateur</th>
+                <th style="padding: 12px; text-align: center; border-bottom: 2px solid #0f6e5f;">Crédits</th>
+                <th style="padding: 12px; text-align: center; border-bottom: 2px solid #0f6e5f;">Expiration</th>
+                <th style="padding: 12px; text-align: center; border-bottom: 2px solid #0f6e5f;">Statut</th>
+                <th style="padding: 12px; text-align: center; border-bottom: 2px solid #0f6e5f;">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for user in users %}
+              <tr style="border-bottom: 1px solid #0a3d35;">
+                <td style="padding: 12px;">{{ user.username }}</td>
+                <td style="padding: 12px; text-align: center;">
+                  <span style="background: #0f6e5f; padding: 4px 10px; border-radius: 12px;">
+                    {{ user.credits }} 💎
+                  </span>
+                </td>
+                <td style="padding: 12px; text-align: center;">{{ user.expiration }}</td>
+                <td style="padding: 12px; text-align: center;">{{ user.statut }}</td>
+                <td style="padding: 12px; text-align: center;">
+                  <form method="post" action="{{ url_for('admin_panel') }}" style="display: inline;">
+                    <input type="hidden" name="action" value="add_credits">
+                    <input type="hidden" name="username" value="{{ user.username }}">
+                    <input type="number" name="amount" value="10" min="1" max="1000" style="width: 60px; padding: 4px; background: #0a3d35; border: 1px solid #0f6e5f; color: white; border-radius: 4px;">
+                    <button type="submit" class="btn" style="padding: 4px 8px; font-size: 12px; margin-left: 5px;">➕ Ajouter</button>
+                  </form>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <p class="muted">Aucun utilisateur trouvé.</p>
+      {% endif %}
+    </div>
+
+    <!-- Pending Purchases -->
+    <div style="margin: 30px 0;">
+      <h3>🛒 Achats en Attente</h3>
+      {% if pending %}
+        <div style="overflow-x: auto;">
+          <table style="width: 100%; border-collapse: collapse; margin-top: 15px;">
+            <thead style="background: #0a3d35;">
+              <tr>
+                <th style="padding: 12px; text-align: left; border-bottom: 2px solid #0f6e5f;">Utilisateur</th>
+                <th style="padding: 12px; text-align: center; border-bottom: 2px solid #0f6e5f;">Pack</th>
+                <th style="padding: 12px; text-align: center; border-bottom: 2px solid #0f6e5f;">Timestamp</th>
+                <th style="padding: 12px; text-align: center; border-bottom: 2px solid #0f6e5f;">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for p in pending %}
+              <tr style="border-bottom: 1px solid #0a3d35;">
+                <td style="padding: 12px;">{{ p.user }}</td>
+                <td style="padding: 12px; text-align: center;">
+                  <span style="background: #d4af37; color: black; padding: 4px 10px; border-radius: 12px; font-weight: bold;">
+                    Pack {{ p.pack }}
+                  </span>
+                </td>
+                <td style="padding: 12px; text-align: center;">{{ p.timestamp }}</td>
+                <td style="padding: 12px; text-align: center;">
+                  <form method="post" action="{{ url_for('admin_panel') }}" style="display: inline;">
+                    <input type="hidden" name="action" value="approve_purchase">
+                    <input type="hidden" name="username" value="{{ p.user }}">
+                    <input type="hidden" name="pack" value="{{ p.pack }}">
+                    <button type="submit" class="btn" style="background: #0f6e5f; padding: 6px 12px; font-size: 12px;">✅ Approuver</button>
+                  </form>
+                  <form method="post" action="{{ url_for('admin_panel') }}" style="display: inline; margin-left: 5px;">
+                    <input type="hidden" name="action" value="reject_purchase">
+                    <input type="hidden" name="username" value="{{ p.user }}">
+                    <button type="submit" class="btn" style="background: #8b0000; padding: 6px 12px; font-size: 12px;">❌ Refuser</button>
+                  </form>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <p class="muted">Aucun achat en attente.</p>
+      {% endif %}
+    </div>
+
+    <!-- Broadcast Message -->
+    <div style="margin: 30px 0;">
+      <h3>📢 Diffusion de Message</h3>
+      <form method="post" action="{{ url_for('admin_panel') }}">
+        <input type="hidden" name="action" value="broadcast">
+        <textarea name="message" placeholder="Message à diffuser à tous les utilisateurs..." rows="4" style="width: 100%; padding: 10px; background: #0a3d35; border: 1px solid #0f6e5f; color: white; border-radius: 8px; font-family: inherit;" required></textarea>
+        <button type="submit" class="btn" style="margin-top: 10px;">📤 Envoyer à tous</button>
+      </form>
+    </div>
+
+  {% endif %}
+</div>
+{% endblock %}
