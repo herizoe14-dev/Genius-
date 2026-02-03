@@ -1,6 +1,7 @@
 import telebot
 import config # Indispensable pour utiliser tes tokens centralisés
 from telebot import types
+from data_store import add_purchase
 
 # On initialise le Bot 2 (Admin) ici pour envoyer les alertes
 bot_admin = telebot.TeleBot(config.TOKEN_BOT_ADMIN)
@@ -29,6 +30,9 @@ def register_boutique_handlers(bot):
     def handle_purchase(call):
         user = call.from_user
         pack_name = call.data.replace("buy_", "").upper()
+        
+        # Persist purchase request in purchases.json
+        add_purchase(str(user.id), pack_name, source="telegram")
         
         # 1. Message d'attente pour l'utilisateur sur le Bot 1
         bot.answer_callback_query(call.id)

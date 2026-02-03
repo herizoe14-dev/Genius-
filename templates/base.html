@@ -49,6 +49,14 @@
     </div>
 
     <div class="right">
+      <!-- Notification button (only for logged-in users) -->
+      {% if session.get('user_id') %}
+        <button id="notifBtn" class="icon-btn notif-btn" aria-label="Notifications" title="Notifications">
+          🔔
+          <span id="notifBadge" class="notif-badge" hidden>0</span>
+        </button>
+      {% endif %}
+      
       <!-- Desktop links only: hidden on mobile (see CSS) -->
       {% if session.get('user_id') %}
         <a class="top-link" href="{{ url_for('home') }}">Dashboard</a>

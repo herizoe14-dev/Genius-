@@ -1,6 +1,7 @@
 import telebot, config, threading, json, os
 from telebot import types 
 from limiteur import add_credits
+from data_store import find_latest_pending, update_status_for_entry, mark_all_pending_as_off
 
 bot_admin = telebot.TeleBot(config.TOKEN_BOT_ADMIN)
 bot_user = telebot.TeleBot(config.TOKEN_BOT_USER)
@@ -46,7 +47,9 @@ def admin_stats(message):
 
     markup = types.InlineKeyboardMarkup()
     btn_maintenance = types.InlineKeyboardButton("📢 Diffuser Maintenance", callback_data="broadcast_off")
+    btn_purchase_off = types.InlineKeyboardButton("🚫 Indisponible (achats → TOUS)", callback_data="broadcast_purchase_off")
     markup.add(btn_maintenance)
+    markup.add(btn_purchase_off)
     bot_admin.send_message(message.chat.id, stats_msg, reply_markup=markup, parse_mode="Markdown")
 
 # --- GESTION DES ACTIONS ---
@@ -71,6 +74,28 @@ def process_admin_actions(call):
                 count += 1
             except: continue
         bot_admin.answer_callback_query(call.id, f"✅ Envoyé à {count} personnes")
+    
+    elif call.data == "broadcast_purchase_off":
+        # New: Mark all pending purchases as off and notify users
+        DATA_FILE = "users_data.json"
+        
+        # Mark all pending purchases as off
+        off_message = "🚫 Les achats sont temporairement indisponibles. Réessayez plus tard."
+        marked_count = mark_all_pending_as_off(off_message)
+        
+        # Broadcast to all users
+        with open(DATA_FILE, "r") as f:
+            data = json.load(f)
+        
+        sent_count = 0
+        for u_id in data.keys():
+            try:
+                bot_user.send_message(u_id, off_message, parse_mode="Markdown")
+                sent_count += 1
+            except: 
+                continue
+        
+        bot_admin.answer_callback_query(call.id, f"✅ {marked_count} achats marqués OFF, message envoyé à {sent_count} utilisateurs")
 
     else:
         parts = call.data.split("|")
@@ -80,16 +105,33 @@ def process_admin_actions(call):
             pack = parts[2]
             amount = 10 if "10" in pack else 50 if "50" in pack else 100
             add_credits(u_id, amount)
+            
+            # Update purchase status in data_store
+            entry = find_latest_pending(u_id)
+            if entry:
+                update_status_for_entry(entry["id"], "accepted", f"✅ Achat validé ! +{amount} crédits ajoutés.")
+            
             bot_admin.edit_message_text(f"✅ Validé (+{amount}) pour {u_id}", call.message.chat.id, call.message.message_id)
             bot_user.send_message(u_id, f"🎉 **Achat validé !** +{amount} crédits ajoutés.")
         
         elif action == "admin_off":
             markup = types.InlineKeyboardMarkup()
             markup.add(types.InlineKeyboardButton("💬 REJOINDRE LA DISCUSSION", url=url_link))
+            
+            # Update purchase status in data_store
+            entry = find_latest_pending(u_id)
+            if entry:
+                update_status_for_entry(entry["id"], "off", "🚫 Achats temporairement indisponibles.")
+            
             bot_admin.edit_message_text(f"🚫 Info maintenance envoyée à {u_id}", call.message.chat.id, call.message.message_id)
             bot_user.send_message(u_id, msg_text, reply_markup=markup, parse_mode="Markdown")
         
         elif action == "admin_no":
+            # Update purchase status in data_store
+            entry = find_latest_pending(u_id)
+            if entry:
+                update_status_for_entry(entry["id"], "rejected", "❌ Votre demande d'achat a été refusée.")
+            
             bot_admin.edit_message_text(f"❌ Refusé pour {u_id}", call.message.chat.id, call.message.message_id)
             bot_user.send_message(u_id, "❌ Votre demande d'achat a été refusée.")
 

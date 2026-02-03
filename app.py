@@ -6,17 +6,19 @@ Remarques :
 - Envoie les notifications d'achat uniquement au bot Telegram (bot_admin).
 - Protection simple anti-brute-force et en-têtes de sécurité appliqués globalement.
 - Utiliser Python 3.8+ ; installe Flask et pyTelegramBotAPI (voir instructions en bas).
+- Intègre data_store.py pour la persistence des achats dans purchases.json
 """
 import os
 import json
 import time
 from threading import Lock
-from flask import Flask, render_template, request, redirect, session, send_file, url_for, flash, make_response
+from flask import Flask, render_template, request, redirect, session, send_file, url_for, flash, make_response, jsonify
 from downloader import download_content
 from limiteur import get_user_data, spend_credit, add_credits, save_data, DATA_FILE
 import telebot
 import config
 import auth
+from data_store import add_purchase, get_unseen_for_user, mark_seen_for_user
 
 # === Configuration Flask ===
 app = Flask(__name__, static_folder="static", template_folder="templates")
@@ -236,6 +238,9 @@ def shop():
             flash("Pack invalide", "danger")
             return redirect(url_for('shop'))
 
+        # Persist purchase request in purchases.json
+        purchase_id = add_purchase(user_id, pack, source="web")
+
         # Journal local pour suivi (non exposé en interface admin)
         ensure_pending_log()
         with pending_lock:
@@ -264,6 +269,40 @@ def shop():
         return redirect(url_for('shop'))
 
     return render_template("shop.html")
+
+# === Notification endpoints for web ===
+@app.route('/notifications/count', methods=['GET'])
+def notifications_count():
+    """Return count of unseen notifications for current user."""
+    if 'user_id' not in session:
+        return jsonify({"count": 0})
+    
+    user_id = session['user_id']
+    unseen = get_unseen_for_user(user_id)
+    return jsonify({"count": len(unseen)})
+
+@app.route('/notifications', methods=['GET'])
+def notifications_list():
+    """Return list of unseen notifications for current user."""
+    if 'user_id' not in session:
+        return jsonify({"notifications": []})
+    
+    user_id = session['user_id']
+    unseen = get_unseen_for_user(user_id)
+    return jsonify({"notifications": unseen})
+
+@app.route('/notifications/ack', methods=['POST'])
+def notifications_ack():
+    """Mark notifications as seen."""
+    if 'user_id' not in session:
+        return jsonify({"error": "Not authenticated"}), 401
+    
+    user_id = session['user_id']
+    data = request.get_json()
+    ids = data.get('ids', [])
+    
+    marked = mark_seen_for_user(user_id, ids)
+    return jsonify({"marked": marked})
 
 # === Run ===
 if __name__ == '__main__':
