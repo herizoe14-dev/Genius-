@@ -1,4 +1,9 @@
-import telebot, config, threading, json, os, auth
+import auth
+import config
+import json
+import os
+import telebot
+import threading
 from telebot import types 
 from limiteur import add_credits
 
@@ -19,7 +24,7 @@ def resolve_telegram_id(user_id):
         return int(telegram_id)
     return None
 
-def iter_maintenance_recipients():
+def get_maintenance_recipients():
     """Collect Telegram IDs from user data and auth records for broadcast."""
     recipients = set()
     data_file = "users_data.json"
@@ -59,6 +64,7 @@ def parse_pack_amount(pack_value):
     digits = "".join(ch for ch in pack_str if ch.isdigit())
     if digits in ("10", "50", "100"):
         return int(digits)
+    print(f"Pack inconnu '{pack_value}', crédits par défaut appliqués.")
     return 100
 
 # --- FONCTION POUR LIRE LE JSON ---
@@ -114,7 +120,7 @@ def process_admin_actions(call):
     url_link = config_data["contact_url"]
 
     if call.data == "broadcast_off":
-        recipients = iter_maintenance_recipients()
+        recipients = get_maintenance_recipients()
         if not recipients:
             bot_admin.answer_callback_query(call.id, "⚠️ Aucun utilisateur Telegram lié.")
             return
