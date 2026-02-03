@@ -80,7 +80,6 @@ input[type="text"], input[type="email"], input[type="password"], select{
 }
 input[type="radio"]{
   accent-color: var(--accent);
-  border: 1px solid rgba(255,255,255,0.2);
 }
 input::placeholder{ color: rgba(223,250,240,0.45) }
 button, .btn{
