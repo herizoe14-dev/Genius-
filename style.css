@@ -3,6 +3,7 @@
   --bg-accent:#081f1b;     /* gradient second */
   --card:#0b2622;          /* carte sombre */
   --muted:#8fdcbc;
+  --muted-rgb:143,220,188;
   --accent:#00d17a;        /* vert */
   --accent-2:#00ff9b;
   --text:#dffaf0;          /* texte clair */
@@ -92,8 +93,8 @@ button.danger{ background:linear-gradient(90deg, #ff8a8a, #ff5b5b); color:white 
 .flash{padding:10px 12px; border-radius:10px; margin-bottom:10px; color:#02221a}
 .flash.success{background:linear-gradient(90deg, rgba(0,209,122,0.12), rgba(0,209,122,0.06))}
 .flash.danger{background:linear-gradient(90deg, rgba(230,75,75,0.08), rgba(230,75,75,0.04))}
-.flash.info{background:linear-gradient(90deg, rgba(143,220,188,0.08), rgba(143,220,188,0.04)); color:var(--muted-text)}
-.flash.empty{border:1px dashed rgba(143,220,188,0.25); color:var(--muted-text)}
+.flash.info{background:linear-gradient(90deg, rgba(var(--muted-rgb),0.08), rgba(var(--muted-rgb),0.04)); color:var(--muted-text)}
+.flash.empty{border:1px dashed rgba(var(--muted-rgb),0.25)}
 
 /* Footer */
 .footer{padding:22px;text-align:center;color:var(--muted-text)}

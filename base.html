@@ -64,7 +64,7 @@
 
   <main class="container">
     {% with messages = get_flashed_messages(with_categories=true) %}
-      <div class="flashes">
+      <div class="flashes" role="status" aria-live="polite">
       {% if messages %}
         {% for category, message in messages %}
           <div class="flash {{ category }}">{{ message }}</div>
