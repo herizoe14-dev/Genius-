@@ -1,4 +1,4 @@
-import time, os, uuid
+import time, os, uuid, re
 from telebot import types
 from limiteur import get_user_data, spend_credit
 from downloader import download_content, split_file 
@@ -6,6 +6,30 @@ from queue_manager import add_to_queue, get_queue_position, remove_from_queue
 
 # Stockage temporaire des liens pour éviter l'erreur BUTTON_DATA_INVALID
 url_storage = {}
+
+# SÉCURITÉ : Rate limiting par utilisateur pour éviter les abus
+user_rate_limit = {}
+RATE_LIMIT_SECONDS = 5  # Minimum 5 secondes entre chaque téléchargement
+
+def check_rate_limit(user_id):
+    """Vérifie si l'utilisateur respecte le rate limit."""
+    now = time.time()
+    last_request = user_rate_limit.get(user_id, 0)
+    if now - last_request < RATE_LIMIT_SECONDS:
+        return False
+    user_rate_limit[user_id] = now
+    return True
+
+def sanitize_youtube_url(url):
+    """Valide et nettoie l'URL YouTube pour éviter les injections."""
+    if not url or not isinstance(url, str):
+        return None
+    url = url.strip()
+    # Pattern YouTube valide
+    youtube_pattern = r'^https?://(www\.)?(youtube\.com|youtu\.be)/'
+    if not re.match(youtube_pattern, url) or len(url) > 500:
+        return None
+    return url
 
 def register_handlers(bot):
 
@@ -18,10 +42,22 @@ def register_handlers(bot):
     @bot.message_handler(func=lambda m: "youtu" in m.text)
     def handle_youtube_link(message):
         user_id = message.from_user.id
+        
+        # SÉCURITÉ : Rate limiting
+        if not check_rate_limit(user_id):
+            bot.reply_to(message, "⏱️ **Ralentis !** Attends quelques secondes entre chaque téléchargement.")
+            return
+        
+        # SÉCURITÉ : Validation de l'URL
+        url = sanitize_youtube_url(message.text)
+        if not url:
+            bot.reply_to(message, "❌ **URL invalide.** Envoie un lien YouTube valide.")
+            return
+        
         if get_user_data(user_id)['credits'] > 0:
-            # On génère un ID court unique pour ce lien
-            link_id = str(uuid.uuid4())[:8]
-            url_storage[link_id] = message.text
+            # On génère un ID court unique pour ce lien (lowercase pour cohérence)
+            link_id = str(uuid.uuid4())[:8].lower()
+            url_storage[link_id] = url
             
             markup = types.InlineKeyboardMarkup()
             # On envoie seulement l'ID court dans le callback_data
@@ -35,7 +71,17 @@ def register_handlers(bot):
 
     @bot.callback_query_handler(func=lambda call: call.data.startswith("dl_"))
     def process_selection(call):
-        action, link_id = call.data.split("|")
+        # SÉCURITÉ : Validation du format de callback_data
+        try:
+            action, link_id = call.data.split("|")
+        except ValueError:
+            bot.answer_callback_query(call.id, "❌ Données invalides.")
+            return
+        
+        # Validation du link_id
+        if not re.match(r'^[a-f0-9]{8}$', link_id):
+            bot.answer_callback_query(call.id, "❌ Identifiant invalide.")
+            return
         
         # On récupère le vrai lien via l'ID
         url = url_storage.get(link_id)

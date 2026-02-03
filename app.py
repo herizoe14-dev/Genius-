@@ -10,6 +10,7 @@ Remarques :
 import os
 import json
 import time
+import re
 from threading import Lock
 from flask import Flask, render_template, request, redirect, session, send_file, url_for, flash, make_response
 from downloader import download_content
@@ -20,7 +21,8 @@ import auth
 
 # === Configuration Flask ===
 app = Flask(__name__, static_folder="static", template_folder="templates")
-app.secret_key = os.getenv("FLASK_SECRET", "genius_ultra_secret_key")
+# SÉCURITÉ : Générer une clé secrète forte si non fournie
+app.secret_key = os.getenv("FLASK_SECRET") or os.urandom(32).hex()
 
 # Cookies sécurisés (bien que pour être utiles il faut HTTPS en prod)
 app.config.update(
@@ -39,6 +41,39 @@ bot_user = telebot.TeleBot(config.TOKEN_BOT_USER)
 
 # Fichier de log / trace des achats (côté site, lecture locale uniquement)
 PENDING_LOG = "pending_purchases.log"
+
+# === Input validation and sanitization ===
+def sanitize_username(username):
+    """Valide le nom d'utilisateur pour éviter les injections."""
+    if not username or not isinstance(username, str):
+        return None
+    # Vérifier que le username ne contient que des caractères valides
+    if not re.match(r'^[a-zA-Z0-9_-]{3,30}$', username):
+        return None
+    return username
+
+def sanitize_url(url):
+    """Valide que l'URL est sécurisée."""
+    if not url or not isinstance(url, str):
+        return None
+    # Vérifier que c'est une URL YouTube/vidéo valide
+    url = url.strip()
+    if len(url) > 500:  # URLs trop longues sont suspectes
+        return None
+    # Pattern de base pour URLs YouTube
+    youtube_pattern = r'^https?://(www\.)?(youtube\.com|youtu\.be)/'
+    if not re.match(youtube_pattern, url):
+        return None
+    return url
+
+def sanitize_telegram_id(telegram_id):
+    """Valide l'ID Telegram."""
+    if not telegram_id:
+        return None
+    telegram_id = str(telegram_id).strip()
+    if not telegram_id.isdigit() or len(telegram_id) > 15:
+        return None
+    return telegram_id
 
 # === Protection basique — rate limiting en mémoire ===
 # Note : c'est un système simple et volatile (ne persiste pas au redémarrage).
@@ -120,9 +155,35 @@ def register():
         username = request.form.get('username', '').strip()
         password = request.form.get('password', '')
         telegram_id = request.form.get('telegram_id', '').strip()
-        if not username or not password:
-            flash("Nom d'utilisateur et mot de passe requis.", "danger")
+        
+        # SÉCURITÉ : Validation et sanitisation des entrées
+        username = sanitize_username(username)
+        if not username:
+            flash("Nom d'utilisateur invalide. Utilisez 3-30 caractères alphanumériques.", "danger")
             return redirect(url_for('register'))
+        
+        if not password or len(password) < 8:
+            flash("Mot de passe requis (minimum 8 caractères).", "danger")
+            return redirect(url_for('register'))
+        
+        # Validation force du mot de passe
+        if not re.search(r'[A-Z]', password):
+            flash("Mot de passe doit contenir au moins une majuscule.", "danger")
+            return redirect(url_for('register'))
+        if not re.search(r'[a-z]', password):
+            flash("Mot de passe doit contenir au moins une minuscule.", "danger")
+            return redirect(url_for('register'))
+        if not re.search(r'[0-9]', password):
+            flash("Mot de passe doit contenir au moins un chiffre.", "danger")
+            return redirect(url_for('register'))
+        
+        # Validation Telegram ID si fourni
+        if telegram_id:
+            telegram_id = sanitize_telegram_id(telegram_id)
+            if not telegram_id:
+                flash("ID Telegram invalide.", "danger")
+                return redirect(url_for('register'))
+        
         with auth_lock:
             ok, reason = auth.create_user(username, password, ip, telegram_id or None)
             if not ok:
@@ -148,8 +209,11 @@ def login():
 
         username = request.form.get('username', '').strip()
         password = request.form.get('password', '')
+        
+        # SÉCURITÉ : Validation des entrées
+        username = sanitize_username(username)
         if not username or not password:
-            flash("Champs manquants.", "danger")
+            flash("Champs invalides.", "danger")
             return redirect(url_for('login'))
 
         with auth_lock:
@@ -190,8 +254,13 @@ def download_page():
         user_id = session['user_id']
         url = request.form.get('url', '').strip()
         mode = request.form.get('mode', 'mp3')
+        
+        # SÉCURITÉ : Validation de l'URL
+        url = sanitize_url(url)
         if not url:
-            msg = "URL requise"
+            msg = "URL YouTube invalide ou manquante"
+        elif mode not in ['mp3', 'mp4']:
+            msg = "Mode de téléchargement invalide"
         else:
             if not spend_credit(user_id):
                 msg = "🔒 Crédits insuffisants. Achetez-en dans la boutique."
@@ -231,7 +300,9 @@ def shop():
 
     if request.method == 'POST':
         user_id = session['user_id']
-        pack = request.form.get('pack')
+        pack = request.form.get('pack', '').strip()
+        
+        # SÉCURITÉ : Validation stricte du pack
         if pack not in ("10", "50", "100"):
             flash("Pack invalide", "danger")
             return redirect(url_for('shop'))
