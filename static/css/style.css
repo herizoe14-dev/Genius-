@@ -144,6 +144,14 @@ button.danger{ background:linear-gradient(90deg, #ff8a8a, #ff5b5b); color:white 
   .btn{ width:100%; display:block }
   .sidebar{ width:78%; max-width:320px } /* slightly narrower on mobile */
 }
+/* Notification Bell Container - Always visible */
+.notification-bell-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 50;
+}
+
 /* Notification Bell Icon */
 .notification-bell {
   position: relative;
@@ -159,6 +167,27 @@ button.danger{ background:linear-gradient(90deg, #ff8a8a, #ff5b5b); color:white 
   background: rgba(0,255,143,0.08);
   transform: rotate(15deg) scale(1.1);
 }
+
+/* Mobile: Make notification bell larger and more visible */
+@media (max-width:899px){
+  .notification-bell-container {
+    position: absolute;
+    right: 16px;
+    top: 50%;
+    transform: translateY(-50%);
+  }
+  .notification-bell {
+    font-size: 26px;
+    padding: 10px 14px;
+    background: rgba(0,255,143,0.1);
+    border: 2px solid rgba(0,255,143,0.2);
+  }
+  .notification-bell:active {
+    background: rgba(0,255,143,0.2);
+    transform: scale(0.95);
+  }
+}
+
 .notification-badge {
   position: absolute;
   top: 4px;
@@ -174,6 +203,18 @@ button.danger{ background:linear-gradient(90deg, #ff8a8a, #ff5b5b); color:white 
   box-shadow: 0 2px 8px rgba(255,107,107,0.4);
   animation: pulse 2s infinite;
 }
+
+/* Mobile: Make badge larger and more visible */
+@media (max-width:899px){
+  .notification-badge {
+    font-size: 11px;
+    padding: 3px 7px;
+    min-width: 20px;
+    top: 2px;
+    right: 2px;
+  }
+}
+
 @keyframes pulse {
   0%, 100% { transform: scale(1); }
   50% { transform: scale(1.15); }
