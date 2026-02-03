@@ -15,7 +15,9 @@ def get_required_env(var_name, dev_default=None):
     """Récupère une variable d'environnement requise."""
     value = os.getenv(var_name)
     if not value:
-        if dev_default and os.getenv("FLASK_ENV") == "development":
+        # Utiliser les valeurs par défaut si on n'est PAS en production
+        # (c'est-à-dire en développement local ou si FLASK_ENV n'est pas défini)
+        if dev_default and os.getenv("FLASK_ENV") != "production":
             print(f"⚠️  AVERTISSEMENT: Utilisation de la valeur par défaut pour {var_name}")
             print(f"⚠️  Configurez .env en production!")
             return dev_default
