@@ -12,6 +12,7 @@ from limiteur import add_credits
 
 bot_admin = telebot.TeleBot(config.TOKEN_BOT_ADMIN)
 bot_user = telebot.TeleBot(config.TOKEN_BOT_USER)
+VALID_PACK_AMOUNTS = ("10", "50", "100")
 
 def resolve_telegram_id(user_id):
     """Resolve a Telegram chat ID from a numeric ID or auth user key; return int or None."""
@@ -54,9 +55,9 @@ def get_maintenance_recipients():
     return recipients
 
 def parse_pack_amount(pack_value):
-    """Return credit amount for a pack value, defaulting safely."""
+    """Return credit amount; unknown values default to 100 and notify admin."""
     pack_str = str(pack_value).strip().upper()
-    if pack_str in ("10", "50", "100"):
+    if pack_str in VALID_PACK_AMOUNTS:
         return int(pack_str)
     name_map = {
         "BRONZE": 10,
@@ -67,7 +68,7 @@ def parse_pack_amount(pack_value):
     if pack_str in name_map:
         return name_map[pack_str]
     digits = "".join(ch for ch in pack_str if ch.isdigit())
-    if digits in ("10", "50", "100"):
+    if digits in VALID_PACK_AMOUNTS:
         return int(digits)
     message = f"Pack inconnu '{pack_value}', crédits par défaut appliqués."
     logging.warning(message)
