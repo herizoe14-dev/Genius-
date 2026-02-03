@@ -1,19 +1,42 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="card">
+<div class="card shop-card">
   <h2>🛒 Boutique</h2>
-  <form method="post">
-    <label>
-      <input type="radio" name="pack" value="10" checked> Pack Bronze — 10 Crédits
-    </label><br>
-    <label>
-      <input type="radio" name="pack" value="50"> Pack Argent — 50 Crédits
-    </label><br>
-    <label>
-      <input type="radio" name="pack" value="100"> Pack Or — 100 Crédits
-    </label><br><br>
-    <button type="submit">Commander</button>
+  <p class="muted shop-intro">Boostez votre compte pour télécharger sans limites !</p>
+  
+  <form method="post" class="shop-form">
+    <div class="pack-options">
+      <label class="pack-option">
+        <input type="radio" name="pack" value="10" checked>
+        <div class="pack-card bronze">
+          <span class="pack-badge">🥉</span>
+          <span class="pack-name">Pack Bronze</span>
+          <span class="pack-credits">10 Crédits</span>
+        </div>
+      </label>
+      
+      <label class="pack-option">
+        <input type="radio" name="pack" value="50">
+        <div class="pack-card silver">
+          <span class="pack-badge">🥈</span>
+          <span class="pack-name">Pack Argent</span>
+          <span class="pack-credits">50 Crédits</span>
+        </div>
+      </label>
+      
+      <label class="pack-option">
+        <input type="radio" name="pack" value="100">
+        <div class="pack-card gold">
+          <span class="pack-badge">🥇</span>
+          <span class="pack-name">Pack Or</span>
+          <span class="pack-credits">100 Crédits</span>
+        </div>
+      </label>
+    </div>
+    
+    <button type="submit" class="btn shop-btn">📦 Commander</button>
   </form>
-  <p class="muted">Ta commande sera envoyée à l'administrateur pour validation.</p>
+  
+  <p class="muted shop-note">Ta commande sera envoyée à l'administrateur pour validation. Tu recevras une notification dès qu'elle sera traitée.</p>
 </div>
 {% endblock %}

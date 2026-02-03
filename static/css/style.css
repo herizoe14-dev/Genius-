@@ -131,6 +131,11 @@ body{
   color:var(--muted-text);
 }
 
+.notification-empty {
+  text-align: center;
+  padding: 20px;
+}
+
 /* Inputs & Buttons */
 input[type="text"], input[type="email"], input[type="password"], select{
   width:100%; padding:12px; margin:8px 0 12px; background:transparent; color:var(--text);
@@ -153,6 +158,103 @@ button.danger{ background:linear-gradient(90deg, #ff8a8a, #ff5b5b); color:white 
 
 /* Footer */
 .footer{padding:22px;text-align:center;color:var(--muted-text)}
+
+/* Shop page styles */
+.shop-card {
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.shop-intro {
+  margin-bottom: 20px;
+  text-align: center;
+}
+
+.shop-form {
+  margin: 16px 0;
+}
+
+.pack-options {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.pack-option {
+  cursor: pointer;
+}
+
+.pack-option input[type="radio"] {
+  display: none;
+}
+
+.pack-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+  border-radius: 12px;
+  background: rgba(255,255,255,0.02);
+  border: 2px solid rgba(255,255,255,0.05);
+  transition: all 0.2s ease;
+}
+
+.pack-option input[type="radio"]:checked + .pack-card {
+  border-color: var(--accent);
+  background: rgba(0,209,122,0.08);
+  box-shadow: 0 4px 20px rgba(0,209,122,0.15);
+}
+
+.pack-card:hover {
+  background: rgba(255,255,255,0.04);
+  transform: translateX(4px);
+}
+
+.pack-badge {
+  font-size: 28px;
+}
+
+.pack-name {
+  font-weight: 700;
+  color: var(--text);
+  flex: 1;
+}
+
+.pack-credits {
+  font-weight: 600;
+  color: var(--accent);
+  padding: 6px 12px;
+  background: rgba(0,209,122,0.1);
+  border-radius: 8px;
+}
+
+.pack-card.bronze .pack-credits {
+  color: #cd7f32;
+  background: rgba(205,127,50,0.1);
+}
+
+.pack-card.silver .pack-credits {
+  color: #c0c0c0;
+  background: rgba(192,192,192,0.1);
+}
+
+.pack-card.gold .pack-credits {
+  color: #ffd700;
+  background: rgba(255,215,0,0.1);
+}
+
+.shop-btn {
+  width: 100%;
+  padding: 16px;
+  font-size: 1.1rem;
+}
+
+.shop-note {
+  margin-top: 16px;
+  text-align: center;
+  font-size: 0.9rem;
+}
 
 /* Sidebar (Drawer) */
 .sidebar{

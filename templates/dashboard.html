@@ -10,9 +10,10 @@
     <a class="btn" href="{{ url_for('shop') }}">Aller à la boutique</a>
   </div>
 </div>
-{% if notifications %}
+
 <div class="card notifications">
   <h3>🔔 Notifications</h3>
+  {% if notifications %}
   <ul class="notification-list">
     {% for notif in notifications %}
       <li class="notification-item {{ notif.level }}">
@@ -21,6 +22,8 @@
       </li>
     {% endfor %}
   </ul>
+  {% else %}
+  <p class="muted notification-empty">Aucune notification pour le moment.</p>
+  {% endif %}
 </div>
-{% endif %}
 {% endblock %}
