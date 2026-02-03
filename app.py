@@ -12,12 +12,13 @@ import json
 import time
 from threading import Lock
 from datetime import datetime
-from flask import Flask, render_template, request, redirect, session, send_file, url_for, flash, make_response
+from flask import Flask, render_template, request, redirect, session, send_file, url_for, flash, make_response, jsonify
 from downloader import download_content
 from limiteur import get_user_data, spend_credit, add_credits, save_data, DATA_FILE
 import telebot
 import config
 import auth
+import notifications as notif_system
 
 # === Configuration Flask ===
 app = Flask(__name__, static_folder="static", template_folder="templates")
@@ -174,7 +175,11 @@ def login():
                 flash("Connecté avec succès.", "success")
                 return redirect(url_for('home'))
             else:
-                flash(reason, "danger")
+                # Check if user doesn't exist
+                if "Utilisateur inconnu" in reason or "inconnu" in reason.lower():
+                    flash("⚠️ Ce compte n'existe pas. Veuillez vous inscrire d'abord.", "warning")
+                else:
+                    flash(reason, "danger")
                 return redirect(url_for('login'))
     return render_template("login.html")
 
@@ -254,6 +259,14 @@ def shop():
         with pending_lock:
             with open(PENDING_LOG, "a", encoding="utf-8") as f:
                 f.write(json.dumps({"user": user_id, "pack": pack, "ts": int(time.time())}) + "\n")
+        
+        # Ajouter une notification pour l'utilisateur
+        notif_system.add_notification(
+            user_id,
+            "🛒 Demande d'achat envoyée",
+            f"Votre demande pour le Pack {pack} crédits a été envoyée à l'administrateur. Vous serez notifié dès la validation.",
+            "info"
+        )
 
         # Notifier exclusivement le Bot Admin (Telegram) — l'admin traitera sur Telegram
         markup = telebot.types.InlineKeyboardMarkup()
@@ -277,6 +290,46 @@ def shop():
         return redirect(url_for('shop'))
 
     return render_template("shop.html")
+
+# === API Notifications ===
+@app.route('/api/notifications')
+def api_get_notifications():
+    if 'user_id' not in session:
+        return jsonify({'error': 'Not authenticated'}), 401
+    
+    user_id = session['user_id']
+    notifications = notif_system.get_user_notifications(user_id)
+    unread_count = notif_system.count_unread_notifications(user_id)
+    
+    return jsonify({
+        'notifications': notifications,
+        'unread_count': unread_count
+    })
+
+@app.route('/api/notifications/<int:notif_id>', methods=['DELETE'])
+def api_delete_notification(notif_id):
+    if 'user_id' not in session:
+        return jsonify({'error': 'Not authenticated'}), 401
+    
+    user_id = session['user_id']
+    success = notif_system.delete_notification(user_id, notif_id)
+    
+    return jsonify({'success': success})
+
+@app.route('/api/notifications/<int:notif_id>/read', methods=['POST'])
+def api_mark_notification_read(notif_id):
+    if 'user_id' not in session:
+        return jsonify({'error': 'Not authenticated'}), 401
+    
+    user_id = session['user_id']
+    success = notif_system.mark_as_read(user_id, notif_id)
+    
+    return jsonify({'success': success})
+
+@app.route('/api/maintenance-alert')
+def api_get_maintenance_alert():
+    alert = notif_system.get_maintenance_alert()
+    return jsonify({'alert': alert})
 
 # === Page Crédits/À propos ===
 @app.route('/credits')
@@ -343,6 +396,14 @@ def admin_panel():
                     except Exception as e:
                         app.logger.debug(f"Failed to send Telegram notification: {e}")
                     
+                    # Add notification to user
+                    notif_system.add_notification(
+                        username,
+                        "✅ Achat validé !",
+                        f"Votre achat de {amount} crédits a été approuvé. Les crédits ont été ajoutés à votre compte.",
+                        "info"
+                    )
+                    
                     flash(f"✅ Achat approuvé pour {username} (+{amount} crédits)", "success")
                 else:
                     flash(f"❌ Erreur lors de l'approbation de l'achat", "danger")
@@ -375,6 +436,14 @@ def admin_panel():
             except Exception as e:
                 app.logger.debug(f"Failed to send Telegram notification: {e}")
             
+            # Add notification to user
+            notif_system.add_notification(
+                username,
+                "❌ Achat refusé",
+                "Votre demande d'achat a été refusée par l'administrateur. Veuillez contacter le support pour plus d'informations.",
+                "info"
+            )
+            
             flash(f"❌ Achat refusé pour {username}", "success")
         
         elif action == 'broadcast':
@@ -398,6 +467,42 @@ def admin_panel():
                         continue
                 
                 flash(f"📤 Message envoyé à {count} utilisateurs", "success")
+        
+        elif action == 'maintenance_alert':
+            message = request.form.get('maintenance_message', '').strip()
+            alert_type = request.form.get('alert_type', 'warning')
+            if message:
+                # Set maintenance alert
+                notif_system.set_maintenance_alert(message, alert_type)
+                
+                # Also send notifications to all users
+                data = {}
+                if os.path.exists(DATA_FILE):
+                    with open(DATA_FILE, "r", encoding="utf-8") as f:
+                        data = json.load(f)
+                
+                for username in data.keys():
+                    notif_system.add_notification(
+                        username,
+                        "🚨 Alerte de maintenance",
+                        message,
+                        "warning"
+                    )
+                    # Also send via Telegram
+                    try:
+                        telegram_id = get_telegram_id(username)
+                        if telegram_id:
+                            bot_user.send_message(telegram_id, f"🚨 **ALERTE DE MAINTENANCE**\n\n{message}", parse_mode="Markdown")
+                    except Exception as e:
+                        app.logger.debug(f"Failed to send maintenance alert to {username}: {e}")
+                
+                flash(f"🚨 Alerte de maintenance envoyée à tous les utilisateurs", "success")
+            else:
+                flash("Message de maintenance requis", "danger")
+        
+        elif action == 'clear_maintenance':
+            notif_system.clear_maintenance_alert()
+            flash("✅ Alerte de maintenance effacée", "success")
         
         return redirect(url_for('admin_panel'))
     

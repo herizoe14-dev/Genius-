@@ -122,11 +122,33 @@
 
     <!-- Broadcast Message -->
     <div style="margin: 30px 0;">
-      <h3>📢 Diffusion de Message</h3>
+      <h3><i class="fas fa-bullhorn"></i> Diffusion de Message</h3>
       <form method="post" action="{{ url_for('admin_panel') }}">
         <input type="hidden" name="action" value="broadcast">
         <textarea name="message" placeholder="Message à diffuser à tous les utilisateurs..." rows="4" style="width: 100%; padding: 10px; background: #0a3d35; border: 1px solid #0f6e5f; color: white; border-radius: 8px; font-family: inherit;" required></textarea>
-        <button type="submit" class="btn" style="margin-top: 10px;">📤 Envoyer à tous</button>
+        <button type="submit" class="btn" style="margin-top: 10px;"><i class="fas fa-paper-plane"></i> Envoyer à tous</button>
+      </form>
+    </div>
+
+    <!-- Maintenance Alert -->
+    <div style="margin: 30px 0; padding: 20px; background: rgba(255,217,61,0.08); border: 1px solid rgba(255,217,61,0.2); border-radius: 12px;">
+      <h3><i class="fas fa-exclamation-triangle"></i> Alerte de Maintenance</h3>
+      <p style="color: var(--muted-text); margin-bottom: 15px;">Envoyer une alerte de maintenance visible sur le site et par Telegram à tous les utilisateurs</p>
+      <form method="post" action="{{ url_for('admin_panel') }}">
+        <input type="hidden" name="action" value="maintenance_alert">
+        <div style="margin-bottom: 12px;">
+          <label style="display: block; margin-bottom: 6px; font-weight: 600;">Type d'alerte :</label>
+          <select name="alert_type" style="width: 100%; padding: 10px; background: #0a3d35; border: 1px solid #0f6e5f; color: white; border-radius: 8px;">
+            <option value="warning">⚠️ Avertissement (Jaune)</option>
+            <option value="error">🚫 Erreur (Rouge)</option>
+            <option value="info">ℹ️ Information (Bleu)</option>
+          </select>
+        </div>
+        <textarea name="maintenance_message" placeholder="Message de maintenance..." rows="3" style="width: 100%; padding: 10px; background: #0a3d35; border: 1px solid #0f6e5f; color: white; border-radius: 8px; font-family: inherit;" required></textarea>
+        <div style="display: flex; gap: 10px; margin-top: 10px;">
+          <button type="submit" class="btn" style="background: linear-gradient(135deg, #ffd93d, #ffc107);"><i class="fas fa-broadcast-tower"></i> Envoyer l'alerte</button>
+          <button type="submit" name="action" value="clear_maintenance" class="btn" style="background: linear-gradient(135deg, #6bcbff, #57b7ff);"><i class="fas fa-times-circle"></i> Effacer l'alerte</button>
+        </div>
       </form>
     </div>
 
