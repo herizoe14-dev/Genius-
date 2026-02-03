@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="card">
+  <h2>🔐 Vérification</h2>
+  <form method="post" action="{{ url_for('verify') }}">
+    <input type="hidden" name="email" value="{{ email }}">
+    <input type="text" name="otp" placeholder="Code reçu" required>
+    <button type="submit">Valider</button>
+  </form>
+  {% if msg %}<p class="error">{{ msg }}</p>{% endif %}
+</div>
+{% endblock %}

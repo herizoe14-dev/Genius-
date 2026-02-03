@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="card">
+  <h2>📥 Téléchargement</h2>
+  <form method="post">
+    <input type="text" name="url" placeholder="Colle le lien YouTube" required>
+    <select name="mode">
+      <option value="mp3">🎵 MP3</option>
+      <option value="mp4">🎥 MP4</option>
+    </select>
+    <button type="submit">Télécharger (1 crédit)</button>
+  </form>
+  {% if msg %}<p class="error">{{ msg }}</p>{% endif %}
+  <p class="muted">Les téléchargements lourds peuvent prendre du temps. Restez sur la page.</p>
+</div>
+{% endblock %}

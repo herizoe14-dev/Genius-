@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <title>Genius Bot - Web</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <meta name="theme-color" content="#06231f">
+</head>
+<body>
+  <!-- Sidebar / Drawer -->
+  <aside id="sidebar" class="sidebar" aria-hidden="true">
+    <div class="sidebar-top">
+      <div class="brand">
+        <span class="logo">Genius</span><span class="sub">Bot</span>
+      </div>
+      <button id="closeSidebar" class="icon-btn close" aria-label="Fermer le menu">✕</button>
+    </div>
+
+    <nav class="sidebar-nav" role="navigation" aria-label="Navigation principale">
+      {% if session.get('user_id') %}
+        <a href="{{ url_for('home') }}" class="side-link">Dashboard</a>
+        <a href="{{ url_for('download_page') }}" class="side-link">Télécharger</a>
+        <a href="{{ url_for('shop') }}" class="side-link">Boutique</a>
+        <a href="{{ url_for('logout') }}" class="side-link logout">Se déconnecter</a>
+      {% else %}
+        <a href="{{ url_for('login') }}" class="side-link">Connexion</a>
+        <a href="{{ url_for('register') }}" class="side-link">Inscription</a>
+      {% endif %}
+    </nav>
+
+    <div class="sidebar-footer">
+      <small>© Genius Bot</small>
+    </div>
+  </aside>
+
+  <!-- Overlay when sidebar open -->
+  <div id="overlay" class="overlay" hidden></div>
+
+  <!-- Topbar -->
+  <header class="topbar">
+    <div class="left">
+      <button id="openSidebar" class="icon-btn hamburger" aria-label="Ouvrir le menu">
+        <span class="bar"></span><span class="bar"></span><span class="bar"></span>
+      </button>
+      <div class="brand-mini">
+        <span class="logo">Genius</span><span class="sub">Bot</span>
+      </div>
+    </div>
+
+    <div class="right">
+      <!-- Desktop links only: hidden on mobile (see CSS) -->
+      {% if session.get('user_id') %}
+        <a class="top-link" href="{{ url_for('home') }}">Dashboard</a>
+        <a class="top-link" href="{{ url_for('download_page') }}">Télécharger</a>
+        <a class="top-link" href="{{ url_for('shop') }}">Boutique</a>
+        <a class="top-link" href="{{ url_for('logout') }}">Se déconnecter</a>
+      {% else %}
+        <a class="top-link" href="{{ url_for('login') }}">Connexion</a>
+        <a class="top-link" href="{{ url_for('register') }}">Inscription</a>
+      {% endif %}
+    </div>
+  </header>
+
+  <main class="container">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <div class="flashes">
+        {% for category, message in messages %}
+          <div class="flash {{ category }}">{{ message }}</div>
+        {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
+
+    {% block content %}{% endblock %}
+  </main>
+
+  <footer class="footer">
+    <small>© Genius Bot • Intégration Web</small>
+  </footer>
+
+  <script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>

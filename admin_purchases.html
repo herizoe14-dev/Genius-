@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="card">
+  <h2>🔧 Admin — Achats en attente</h2>
+  {% if msg %}<p class="info">{{ msg }}</p>{% endif %}
+  {% if pending %}
+    <table class="table">
+      <thead>
+        <tr><th>Utilisateur</th><th>Pack</th><th>État</th><th>Actions</th></tr>
+      </thead>
+      <tbody>
+        {% for p in pending %}
+        <tr>
+          <td>{{ p.user_id }}</td>
+          <td>{{ p.pack }}</td>
+          <td>{{ p.status }}</td>
+          <td>
+            {% if p.status == 'pending' %}
+            <form method="post" style="display:inline">
+              <input type="hidden" name="user_id" value="{{ p.user_id }}">
+              <input type="hidden" name="pack" value="{{ p.pack }}">
+              <button name="action" value="accept" class="btn">✅ Accepter</button>
+            </form>
+            <form method="post" style="display:inline">
+              <input type="hidden" name="user_id" value="{{ p.user_id }}">
+              <input type="hidden" name="pack" value="{{ p.pack }}">
+              <button name="action" value="reject" class="btn danger">❌ Refuser</button>
+            </form>
+            {% else %}
+              <em>—</em>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    <p>Aucune demande en attente.</p>
+  {% endif %}
+</div>
+{% endblock %}

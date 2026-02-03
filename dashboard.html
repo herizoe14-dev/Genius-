@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="card">
+  <h2>👋 Bienvenue</h2>
+  <p><strong>ID :</strong> {{ user_id }}</p>
+  <p><strong>Crédits :</strong> {{ user.credits }}</p>
+  <p><strong>Expiration :</strong> {{ user.expiration }}</p>
+  <div class="actions">
+    <a class="btn" href="{{ url_for('download_page') }}">Télécharger un média</a>
+    <a class="btn" href="{{ url_for('shop') }}">Aller à la boutique</a>
+  </div>
+</div>
+{% endblock %}
