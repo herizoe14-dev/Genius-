@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="card">
+  <h2>📖 À propos</h2>
+  <p class="about-intro">
+    <strong>Genius Bot</strong> est une application web et bot Telegram pour télécharger du contenu YouTube avec un système de crédits sécurisé.
+  </p>
+
+  <h3>🔒 Sécurité</h3>
+  <ul class="about-list">
+    <li>Clés secrètes sécurisées via variables d'environnement</li>
+    <li>Validation et sanitisation de toutes les entrées utilisateur</li>
+    <li>Protection CSRF sur les formulaires</li>
+    <li>En-têtes de sécurité (CSP, HSTS, X-Frame-Options)</li>
+    <li>Rate limiting pour prévenir les attaques</li>
+  </ul>
+
+  <h3>💳 Système de Crédits</h3>
+  <p class="muted">
+    Achetez des crédits dans la boutique pour télécharger du contenu. Chaque téléchargement consomme 1 crédit.
+  </p>
+
+  <h3>📱 Bot Telegram</h3>
+  <p class="muted">
+    Utilisez notre bot Telegram pour télécharger du contenu directement depuis votre application de messagerie.
+  </p>
+
+  <h3>🛠️ Version</h3>
+  <p class="muted">
+    Genius Bot v1.0.0
+  </p>
+
+  <div class="actions">
+    <a class="btn" href="{{ url_for('home') }}">Retour au Dashboard</a>
+  </div>
+</div>
+{% endblock %}
