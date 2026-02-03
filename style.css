@@ -78,6 +78,7 @@ input[type="text"], input[type="email"], input[type="password"], select{
   width:100%; padding:12px; margin:8px 0 12px; background:transparent; color:var(--text);
   border:1px solid rgba(255,255,255,0.04); border-radius:10px; outline:none;
 }
+input[type="radio"]{ accent-color: var(--accent); }
 input::placeholder{ color: rgba(223,250,240,0.45) }
 button, .btn{
   background: linear-gradient(90deg, var(--accent), var(--accent-2));
@@ -92,6 +93,21 @@ button.danger{ background:linear-gradient(90deg, #ff8a8a, #ff5b5b); color:white 
 .flash{padding:10px 12px; border-radius:10px; margin-bottom:10px; color:#02221a}
 .flash.success{background:linear-gradient(90deg, rgba(0,209,122,0.12), rgba(0,209,122,0.06))}
 .flash.danger{background:linear-gradient(90deg, rgba(230,75,75,0.08), rgba(230,75,75,0.04))}
+.flash{
+  border: 1px solid rgba(255,255,255,0.04);
+  color: var(--text);
+}
+
+/* Forms & tables */
+form{ display:flex; flex-direction:column; gap:8px; }
+label{ display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+.actions{ display:flex; flex-wrap:wrap; gap:12px; }
+.muted{ color: var(--muted-text); }
+.error{ color: var(--danger); margin-top:10px; }
+.info{ color: var(--accent); margin-top:10px; }
+.table{ width:100%; border-collapse:collapse; }
+.table th, .table td{ text-align:left; padding:10px; border-bottom:1px solid rgba(255,255,255,0.05); }
+.table th{ color: var(--muted-text); font-weight:700; }
 
 /* Footer */
 .footer{padding:22px;text-align:center;color:var(--muted-text)}
@@ -138,6 +154,7 @@ button.danger{ background:linear-gradient(90deg, #ff8a8a, #ff5b5b); color:white 
   .container{ padding:12px }
   .card{ border-radius:12px }
   input{ padding:14px }
-  .btn{ width:100%; display:block }
+  .btn, button{ width:100%; display:block }
+  .table{ display:block; overflow-x:auto; }
   .sidebar{ width:78%; max-width:320px } /* slightly narrower on mobile */
 }

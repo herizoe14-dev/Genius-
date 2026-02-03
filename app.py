@@ -252,6 +252,7 @@ def shop():
             "━━━━━━━━━━━━━━━━━━━━\n"
             f"👤 Utilisateur : {user_id}\n"
             f"📦 Pack : {pack}\n"
+            "ℹ️ Pense à lier le Telegram ID utilisateur pour notifier.\n"
             "━━━━━━━━━━━━━━━━━━━━\n"
             "Action requise :"
         )
