@@ -19,6 +19,7 @@ import telebot
 import config
 import auth
 from admin import resolve_telegram_id, send_telegram_message
+from notifications import add_notification, get_notifications
 
 # === Configuration Flask ===
 app = Flask(__name__, static_folder="static", template_folder="templates")
@@ -242,7 +243,8 @@ def home():
         return redirect(url_for('login'))
     user_id = session['user_id']
     user_info = get_user_data(user_id)
-    return render_template("dashboard.html", user_id=user_id, user=user_info)
+    notifications = get_notifications(user_id)
+    return render_template("dashboard.html", user_id=user_id, user=user_info, notifications=notifications)
 
 # === Téléchargement ===
 @app.route('/download', methods=['GET', 'POST'])
@@ -337,7 +339,7 @@ def shop():
             parse_mode="Markdown"
         )
         telegram_target = resolve_telegram_id(user_id)
-        send_telegram_message(
+        user_notified = send_telegram_message(
             bot_user,
             telegram_target,
             "🧾 **Commande reçue !**\nVotre demande d'achat est en attente de validation.",
@@ -345,7 +347,13 @@ def shop():
             log_func=app.logger.exception,
             parse_mode="Markdown"
         )
-        flash("Demande envoyée à l'administrateur (via Telegram).", "success")
+        if not user_notified:
+            add_notification(
+                user_id,
+                "🧾 Commande reçue. Votre demande d'achat est en attente de validation.",
+                level="info"
+            )
+        flash("Demande envoyée à l'administrateur.", "success")
         return redirect(url_for('shop'))
 
     return render_template("shop.html")

@@ -91,6 +91,7 @@ L'application génère plusieurs fichiers de logs pour la sécurité et l'audit 
 - `credit_transactions.log` - Historique de toutes les transactions de crédits
 - `admin_actions.log` - Toutes les actions administratives
 - `pending_purchases.log` - Demandes d'achat en attente
+- `web_notifications.json` - Notifications web envoyées si Telegram est indisponible
 
 Ces fichiers sont automatiquement exclus du versioning Git.
 
