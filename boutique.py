@@ -1,6 +1,7 @@
 import telebot
 import config # Indispensable pour utiliser tes tokens centralisés
 from telebot import types
+import notifications
 
 # On initialise le Bot 2 (Admin) ici pour envoyer les alertes
 bot_admin = telebot.TeleBot(config.TOKEN_BOT_ADMIN)
@@ -61,3 +62,5 @@ def register_boutique_handlers(bot):
             bot_admin.send_message(config.ADMIN_ID, admin_text, reply_markup=markup_admin, parse_mode="Markdown")
         except Exception as e:
             print(f"⚠️ Erreur d'envoi au Bot 2 : {e}")
+
+        notifications.add_notification(user.id, f"⏳ Demande envoyée pour le Pack {pack_name}.")

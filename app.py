@@ -17,6 +17,7 @@ from limiteur import get_user_data, spend_credit, add_credits, save_data, DATA_F
 import telebot
 import config
 import auth
+import notifications
 
 # === Configuration Flask ===
 app = Flask(__name__, static_folder="static", template_folder="templates")
@@ -106,6 +107,18 @@ def ensure_pending_log():
     if not os.path.exists(PENDING_LOG):
         with open(PENDING_LOG, "w", encoding="utf-8") as f:
             f.write("")
+
+
+@app.context_processor
+def inject_notifications():
+    if 'user_id' not in session:
+        return {}
+    user_id = session['user_id']
+    items = notifications.get_notifications(user_id)
+    return {
+        "notifications": items,
+        "notifications_count": len(items)
+    }
 
 # === Routes d'auth (inscription / connexion / logout) ===
 @app.route('/register', methods=['GET', 'POST'])
@@ -260,6 +273,7 @@ def shop():
         except Exception:
             app.logger.exception("Erreur envoi notification admin Telegram")
             # On ne bloque pas l'utilisateur si Telegram échoue
+        notifications.add_notification(user_id, f"⏳ Demande envoyée pour le pack {pack}.")
         flash("Demande envoyée à l'administrateur (via Telegram).", "success")
         return redirect(url_for('shop'))
 

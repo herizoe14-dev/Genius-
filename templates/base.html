@@ -19,13 +19,19 @@
 
     <nav class="sidebar-nav" role="navigation" aria-label="Navigation principale">
       {% if session.get('user_id') %}
-        <a href="{{ url_for('home') }}" class="side-link">Dashboard</a>
-        <a href="{{ url_for('download_page') }}" class="side-link">Télécharger</a>
-        <a href="{{ url_for('shop') }}" class="side-link">Boutique</a>
-        <a href="{{ url_for('logout') }}" class="side-link logout">Se déconnecter</a>
+        <a href="{{ url_for('home') }}" class="side-link"><span class="side-icon">🏠</span>Dashboard</a>
+        <a href="{{ url_for('download_page') }}" class="side-link"><span class="side-icon">⬇️</span>Télécharger</a>
+        <a href="{{ url_for('shop') }}" class="side-link"><span class="side-icon">🛒</span>Boutique</a>
+        <button class="side-link notification-link" id="notificationButtonMobile" type="button" aria-label="Notifications">
+          <span class="side-icon">🔔</span>Notifications
+          {% if notifications_count %}
+            <span class="notification-badge">{{ notifications_count }}</span>
+          {% endif %}
+        </button>
+        <a href="{{ url_for('logout') }}" class="side-link logout"><span class="side-icon">🚪</span>Se déconnecter</a>
       {% else %}
-        <a href="{{ url_for('login') }}" class="side-link">Connexion</a>
-        <a href="{{ url_for('register') }}" class="side-link">Inscription</a>
+        <a href="{{ url_for('login') }}" class="side-link"><span class="side-icon">🔐</span>Connexion</a>
+        <a href="{{ url_for('register') }}" class="side-link"><span class="side-icon">📝</span>Inscription</a>
       {% endif %}
     </nav>
 
@@ -34,7 +40,7 @@
     </div>
   </aside>
 
-  <!-- Overlay when sidebar open -->
+  <!-- Overlay when sidebar is open -->
   <div id="overlay" class="overlay" hidden></div>
 
   <!-- Topbar -->
@@ -54,6 +60,12 @@
         <a class="top-link" href="{{ url_for('home') }}">Dashboard</a>
         <a class="top-link" href="{{ url_for('download_page') }}">Télécharger</a>
         <a class="top-link" href="{{ url_for('shop') }}">Boutique</a>
+        <button class="icon-btn notification-btn" id="notificationButton" type="button" aria-label="Notifications">
+          🔔
+          {% if notifications_count %}
+            <span class="notification-badge">{{ notifications_count }}</span>
+          {% endif %}
+        </button>
         <a class="top-link" href="{{ url_for('logout') }}">Se déconnecter</a>
       {% else %}
         <a class="top-link" href="{{ url_for('login') }}">Connexion</a>
@@ -63,7 +75,17 @@
   </header>
 
   <main class="container">
-    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if notifications %}
+      <div class="notification-alerts" id="notificationPanel" hidden>
+        {% for notification in notifications %}
+          <div class="alert-window">
+            <div class="alert-header">🔔 Notification</div>
+            <div class="alert-body">{{ notification.message }}</div>
+          </div>
+        {% endfor %}
+      </div>
+    {% endif %}
+      {% with messages = get_flashed_messages(with_categories=true) %}
       {% if messages %}
         <div class="flashes">
         {% for category, message in messages %}

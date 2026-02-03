@@ -1,9 +1,11 @@
-import telebot, config, threading, json, os
+import telebot, config, threading, json, os, logging
 from telebot import types 
 from limiteur import add_credits
+import notifications
 
 bot_admin = telebot.TeleBot(config.TOKEN_BOT_ADMIN)
 bot_user = telebot.TeleBot(config.TOKEN_BOT_USER)
+logger = logging.getLogger(__name__)
 
 # --- FONCTION POUR LIRE LE JSON ---
 def get_maintenance_config():
@@ -12,14 +14,24 @@ def get_maintenance_config():
         # Création par défaut si le fichier n'existe pas
         default = {
             "maintenance_text": "🚨 **MAINTENANCE**\nLe système est en pause.",
-            "contact_url": "https://t.me/+V0JSweR8CEY0MGU8"
+            "contact_url": "https://t.me/+V0JSweR8CEY0MGU8",
+            "purchase_unavailable_text": "🚫 **ACHAT INDISPONIBLE**\nLes achats sont temporairement indisponibles."
         }
         with open(file_path, "w") as f:
             json.dump(default, f, indent=4)
         return default
     
     with open(file_path, "r", encoding="utf-8") as f:
-        return json.load(f)
+        data = json.load(f)
+
+    updated = False
+    if "purchase_unavailable_text" not in data:
+        data["purchase_unavailable_text"] = "🚫 **ACHAT INDISPONIBLE**\nLes achats sont temporairement indisponibles."
+        updated = True
+    if updated:
+        with open(file_path, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=4)
+    return data
 
 # --- COMMANDE /ADMIN (INCHANGÉE) ---
 @bot_admin.message_handler(commands=['admin'])
@@ -46,7 +58,9 @@ def admin_stats(message):
 
     markup = types.InlineKeyboardMarkup()
     btn_maintenance = types.InlineKeyboardButton("📢 Diffuser Maintenance", callback_data="broadcast_off")
+    btn_unavailable = types.InlineKeyboardButton("🚫 Achat indisponible", callback_data="broadcast_unavailable")
     markup.add(btn_maintenance)
+    markup.add(btn_unavailable)
     bot_admin.send_message(message.chat.id, stats_msg, reply_markup=markup, parse_mode="Markdown")
 
 # --- GESTION DES ACTIONS ---
@@ -56,6 +70,7 @@ def process_admin_actions(call):
     config_data = get_maintenance_config()
     msg_text = config_data["maintenance_text"]
     url_link = config_data["contact_url"]
+    unavailable_text = config_data.get("purchase_unavailable_text", "🚫 **ACHAT INDISPONIBLE**\nLes achats sont temporairement indisponibles.")
 
     if call.data == "broadcast_off":
         DATA_FILE = "users_data.json"
@@ -68,8 +83,26 @@ def process_admin_actions(call):
                 markup = types.InlineKeyboardMarkup()
                 markup.add(types.InlineKeyboardButton("💬 REJOINDRE LA DISCUSSION", url=url_link))
                 bot_user.send_message(u_id, msg_text, reply_markup=markup, parse_mode="Markdown")
+                notifications.add_notification(u_id, msg_text)
                 count += 1
-            except: continue
+            except (telebot.apihelper.ApiException, telebot.apihelper.ApiHTTPException) as exc:
+                logger.warning("Erreur lors de l'envoi de la notification de maintenance vers %s : %s", u_id, exc)
+                continue
+        bot_admin.answer_callback_query(call.id, f"✅ Envoyé à {count} personnes")
+    elif call.data == "broadcast_unavailable":
+        DATA_FILE = "users_data.json"
+        with open(DATA_FILE, "r") as f:
+            data = json.load(f)
+
+        count = 0
+        for u_id in data.keys():
+            try:
+                bot_user.send_message(u_id, unavailable_text, parse_mode="Markdown")
+                notifications.add_notification(u_id, unavailable_text)
+                count += 1
+            except (telebot.apihelper.ApiException, telebot.apihelper.ApiHTTPException) as exc:
+                logger.warning("Erreur lors de l'envoi de la notification d'achat indisponible vers %s : %s", u_id, exc)
+                continue
         bot_admin.answer_callback_query(call.id, f"✅ Envoyé à {count} personnes")
 
     else:
@@ -81,17 +114,22 @@ def process_admin_actions(call):
             amount = 10 if "10" in pack else 50 if "50" in pack else 100
             add_credits(u_id, amount)
             bot_admin.edit_message_text(f"✅ Validé (+{amount}) pour {u_id}", call.message.chat.id, call.message.message_id)
-            bot_user.send_message(u_id, f"🎉 **Achat validé !** +{amount} crédits ajoutés.")
+            user_msg = f"🎉 **Achat validé !** +{amount} crédits ajoutés."
+            notifications.add_notification(u_id, user_msg)
+            bot_user.send_message(u_id, user_msg, parse_mode="Markdown")
         
         elif action == "admin_off":
             markup = types.InlineKeyboardMarkup()
             markup.add(types.InlineKeyboardButton("💬 REJOINDRE LA DISCUSSION", url=url_link))
             bot_admin.edit_message_text(f"🚫 Info maintenance envoyée à {u_id}", call.message.chat.id, call.message.message_id)
+            notifications.add_notification(u_id, msg_text)
             bot_user.send_message(u_id, msg_text, reply_markup=markup, parse_mode="Markdown")
         
         elif action == "admin_no":
             bot_admin.edit_message_text(f"❌ Refusé pour {u_id}", call.message.chat.id, call.message.message_id)
-            bot_user.send_message(u_id, "❌ Votre demande d'achat a été refusée.")
+            user_msg = "❌ Votre demande d'achat a été refusée."
+            notifications.add_notification(u_id, user_msg)
+            bot_user.send_message(u_id, user_msg, parse_mode="Markdown")
 
 # --- NOTIFICATIONS (INCHANGÉES) ---
 def notify_new_purchase(user_id, username, pack_name):

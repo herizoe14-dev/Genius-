@@ -4,7 +4,7 @@
   <h2>🔐 Vérification</h2>
   <form method="post" action="{{ url_for('verify') }}">
     <input type="hidden" name="email" value="{{ email }}">
-    <input type="text" name="otp" placeholder="Code reçu" required>
+    <input type="text" name="otp" placeholder="Code reçu" inputmode="numeric" autocomplete="one-time-code" required>
     <button type="submit">Valider</button>
   </form>
   {% if msg %}<p class="error">{{ msg }}</p>{% endif %}

@@ -20,7 +20,7 @@ body{
   margin:0;
   font-family: Inter, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   background:
-    radial-gradient(1200px 500px at 10% 10%, rgba(0,209,122,0.03), transparent 8%),
+    radial-gradient(1200px 500px at 10% 10%, rgba(0,209,122,0.03), transparent 45%),
     linear-gradient(180deg, var(--bg), var(--bg-accent) 100%);
   color:var(--text);
   -webkit-font-smoothing:antialiased;
@@ -57,6 +57,21 @@ body{
   color:var(--muted-text);
 }
 .icon-btn.close{ font-size:18px; color:var(--muted-text) }
+.notification-btn{
+  position:relative;
+  background:rgba(0,209,122,0.08);
+  color:var(--text);
+}
+.notification-badge{
+  position:absolute; top:-4px; right:-4px;
+  min-width:18px; height:18px; padding:0 4px;
+  border-radius:999px;
+  background:var(--danger); color:white;
+  font-size:11px; display:flex; align-items:center; justify-content:center;
+  font-weight:700;
+}
+.notification-link{ background:rgba(0,209,122,0.04); text-align:left; width:100%; }
+.notification-link .notification-badge{ position:static; margin-left:auto; }
 
 /* Hamburger bars */
 .hamburger .bar{ display:block; width:20px; height:2px; background:var(--muted-text); margin:3px 0; border-radius:2px; transition:transform .18s ease }
@@ -110,10 +125,27 @@ button.danger{ background:linear-gradient(90deg, #ff8a8a, #ff5b5b); color:white 
 .sidebar .brand{ font-weight:800; color:var(--accent); font-size:20px }
 .sidebar-nav{ display:flex; flex-direction:column; gap:8px; margin-top:8px }
 .side-link{
-  display:block; padding:12px 14px; border-radius:10px; color:var(--muted-text); text-decoration:none; font-weight:700;
-  background: transparent; transition: background .12s ease, transform .09s ease;
+  display:flex; align-items:center; gap:10px;
+  padding:12px 14px; border-radius:10px; color:var(--muted-text);
+  text-decoration:none; font-weight:700;
+  background: rgba(0,209,122,0.03);
+  border:1px solid rgba(0,209,122,0.08);
+  transition: background .12s ease, transform .09s ease, border-color .12s ease;
 }
-.side-link:hover{ background: rgba(0,209,122,0.03); color:var(--text); transform:translateX(4px) }
+.side-link:hover{ background: rgba(0,209,122,0.08); color:var(--text); transform:translateX(4px); border-color:rgba(0,209,122,0.2) }
+.side-icon{ font-size:16px; }
+.side-link.logout{ color:#ffd6d6; border-color:rgba(255,107,107,0.2); background:rgba(255,107,107,0.08) }
+
+.notification-alerts{ display:flex; flex-direction:column; gap:12px; margin-bottom:12px }
+.alert-window{
+  background:rgba(0,209,122,0.08);
+  border:1px solid rgba(0,209,122,0.2);
+  border-radius:12px;
+  padding:12px 14px;
+  box-shadow:var(--shadow);
+}
+.alert-header{ font-weight:700; margin-bottom:6px; color:var(--accent-2) }
+.alert-body{ color:var(--text) }
 
 /* Overlay */
 .overlay{
@@ -124,17 +156,16 @@ button.danger{ background:linear-gradient(90deg, #ff8a8a, #ff5b5b); color:white 
 
 /* Responsive behaviour */
 @media (min-width: 900px){
-  /* Desktop: show top links, hide hamburger and overlay/drawer overlay behavior */
+  /* Desktop: show top links, hide hamburger and overlay/drawer behavior */
   #openSidebar, #closeSidebar, .overlay { display:none }
   .sidebar{ position:static; transform:none; width:auto; display:flex; box-shadow:none; background:transparent; padding:0; border-right:0; flex-direction:row; gap:16px; align-items:center; }
   .sidebar-nav{ flex-direction:row; gap:12px; }
   .container{ margin-top:18px }
 }
 
-/* Mobile tweaks: hide top links and show drawer button */
+/* Mobile tweaks: hide top links and show sidebar button */
 @media (max-width:899px){
-  .right{ display:none !important } /* force hide desktop links on mobile */
-  .top-link{ display:none !important }
+  header .top-link{ display:none }
   .container{ padding:12px }
   .card{ border-radius:12px }
   input{ padding:14px }
