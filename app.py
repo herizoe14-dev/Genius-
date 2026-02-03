@@ -244,6 +244,46 @@ def home():
     user_info = get_user_data(user_id)
     return render_template("dashboard.html", user_id=user_id, user=user_info)
 
+# === À propos ===
+@app.route('/about')
+def about():
+    return render_template("about.html")
+
+# === Notifications API ===
+@app.route('/api/notifications')
+def get_notifications():
+    """API endpoint pour récupérer le nombre de notifications."""
+    if 'user_id' not in session:
+        return {"count": 0, "notifications": []}, 200
+    
+    user_id = session['user_id']
+    notifications = []
+    count = 0
+    
+    # Lire les notifications des achats en attente pour cet utilisateur
+    ensure_pending_log()
+    try:
+        with pending_lock:
+            with open(PENDING_LOG, "r", encoding="utf-8") as f:
+                for line in f:
+                    line = line.strip()
+                    if line:
+                        try:
+                            entry = json.loads(line)
+                            if entry.get("user") == user_id:
+                                notifications.append({
+                                    "type": "pending_purchase",
+                                    "message": f"Achat de {entry.get('pack')} crédits en attente",
+                                    "timestamp": entry.get("ts", 0)
+                                })
+                                count += 1
+                        except json.JSONDecodeError:
+                            continue
+    except Exception:
+        app.logger.exception("Erreur lors de la lecture des notifications depuis le fichier pending_purchases.log")
+    
+    return {"count": count, "notifications": notifications}, 200
+
 # === Téléchargement ===
 @app.route('/download', methods=['GET', 'POST'])
 def download_page():

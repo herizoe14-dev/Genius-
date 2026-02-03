@@ -32,4 +32,50 @@ document.addEventListener('DOMContentLoaded', function () {
   document.addEventListener('keydown', function(e){
     if(e.key === 'Escape') closeSidebar();
   });
+
+  // === Notification badge auto-refresh ===
+  const notificationBadge = document.getElementById('notificationBadge');
+  const menuBadge = document.getElementById('menuBadge');
+  const NOTIFICATION_REFRESH_INTERVAL_MS = 30000; // 30 seconds
+
+  function updateNotificationBadges(count){
+    // Update notification icon badge
+    if(notificationBadge){
+      if(count > 0){
+        notificationBadge.textContent = count > 99 ? '99+' : count;
+        notificationBadge.hidden = false;
+      } else {
+        notificationBadge.hidden = true;
+      }
+    }
+    // Update menu/hamburger badge
+    if(menuBadge){
+      if(count > 0){
+        menuBadge.textContent = count > 99 ? '99+' : count;
+        menuBadge.hidden = false;
+      } else {
+        menuBadge.hidden = true;
+      }
+    }
+  }
+
+  function fetchNotifications(){
+    fetch('/api/notifications')
+      .then(function(response){
+        if(!response.ok) throw new Error('Network response was not ok');
+        return response.json();
+      })
+      .then(function(data){
+        updateNotificationBadges(data.count || 0);
+      })
+      .catch(function(error){
+        console.error('Error fetching notifications:', error);
+      });
+  }
+
+  // Initial fetch and set interval for auto-refresh
+  if(notificationBadge || menuBadge){
+    fetchNotifications();
+    setInterval(fetchNotifications, NOTIFICATION_REFRESH_INTERVAL_MS);
+  }
 });
