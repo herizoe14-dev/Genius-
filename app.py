@@ -11,12 +11,13 @@ import os
 import json
 import time
 from threading import Lock
-from flask import Flask, render_template, request, redirect, session, send_file, url_for, flash, make_response
+from flask import Flask, render_template, request, redirect, session, send_file, url_for, flash, make_response, jsonify
 from downloader import download_content
 from limiteur import get_user_data, spend_credit, add_credits, save_data, DATA_FILE
 import telebot
 import config
 import auth
+from data_store import add_purchase, get_unseen_for_user, mark_seen_for_user
 
 # === Configuration Flask ===
 app = Flask(__name__, static_folder="static", template_folder="templates")
@@ -236,6 +237,9 @@ def shop():
             flash("Pack invalide", "danger")
             return redirect(url_for('shop'))
 
+        # Persist purchase request to purchases.json
+        add_purchase(user_id, pack, source="web")
+
         # Journal local pour suivi (non exposé en interface admin)
         ensure_pending_log()
         with pending_lock:
@@ -264,6 +268,42 @@ def shop():
         return redirect(url_for('shop'))
 
     return render_template("shop.html")
+
+# === Notification API endpoints ===
+@app.route('/notifications', methods=['GET'])
+def get_notifications():
+    """Get all unseen notifications for the logged-in user."""
+    if 'user_id' not in session:
+        return jsonify({"error": "Unauthorized"}), 401
+    
+    user_id = session['user_id']
+    notifications = get_unseen_for_user(user_id)
+    
+    return jsonify({"notifications": notifications})
+
+
+@app.route('/notifications/count', methods=['GET'])
+def get_notifications_count():
+    """Get count of unseen notifications for the logged-in user."""
+    if 'user_id' not in session:
+        return jsonify({"error": "Unauthorized"}), 401
+    
+    user_id = session['user_id']
+    notifications = get_unseen_for_user(user_id)
+    
+    return jsonify({"count": len(notifications)})
+
+
+@app.route('/notifications/ack', methods=['POST'])
+def acknowledge_notifications():
+    """Mark all unseen notifications as seen for the logged-in user."""
+    if 'user_id' not in session:
+        return jsonify({"error": "Unauthorized"}), 401
+    
+    user_id = session['user_id']
+    mark_seen_for_user(user_id)
+    
+    return jsonify({"success": True})
 
 # === Run ===
 if __name__ == '__main__':

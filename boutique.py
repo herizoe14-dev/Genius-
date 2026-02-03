@@ -1,6 +1,7 @@
 import telebot
 import config # Indispensable pour utiliser tes tokens centralisés
 from telebot import types
+from data_store import add_purchase
 
 # On initialise le Bot 2 (Admin) ici pour envoyer les alertes
 bot_admin = telebot.TeleBot(config.TOKEN_BOT_ADMIN)
@@ -38,6 +39,9 @@ def register_boutique_handlers(bot):
             text=f"⏳ **Demande pour le Pack {pack_name} envoyée.**\n\n_Veuillez patienter, un administrateur vérifie votre compte..._",
             parse_mode="Markdown"
         )
+
+        # Persist purchase to purchases.json
+        add_purchase(user.id, pack_name, source="telegram")
 
         # 2. Boutons de validation pour l'Admin (Bot 2)
         markup_admin = types.InlineKeyboardMarkup()

@@ -54,9 +54,19 @@ body{
 .icon-btn{
   display:inline-flex; align-items:center; justify-content:center;
   width:44px; height:44px; border-radius:10px; background:transparent; border:none; cursor:pointer;
-  color:var(--muted-text);
+  color:var(--muted-text); position:relative;
+  transition: background .12s ease, transform .09s ease;
 }
+.icon-btn:hover{ background: rgba(0,209,122,0.05); transform:scale(1.05) }
 .icon-btn.close{ font-size:18px; color:var(--muted-text) }
+
+/* Notification Bell */
+.notif-bell{ font-size:20px; position:relative }
+.notif-badge{
+  position:absolute; top:6px; right:6px; background:var(--danger); color:#fff;
+  border-radius:12px; padding:2px 6px; font-size:10px; font-weight:700;
+  min-width:18px; text-align:center; box-shadow: 0 2px 8px rgba(255,107,107,0.4);
+}
 
 /* Hamburger bars */
 .hamburger .bar{ display:block; width:20px; height:2px; background:var(--muted-text); margin:3px 0; border-radius:2px; transition:transform .18s ease }
@@ -98,22 +108,30 @@ button.danger{ background:linear-gradient(90deg, #ff8a8a, #ff5b5b); color:white 
 
 /* Sidebar (Drawer) */
 .sidebar{
-  position:fixed; top:0; left:0; bottom:0; width:280px; padding:18px; transform:translateX(-120%);
+  position:fixed; top:0; left:0; bottom:0; width:280px; padding:20px; transform:translateX(-120%);
   background: linear-gradient(180deg, rgba(7,25,22,0.98), rgba(6,21,18,0.98));
   box-shadow: 0 22px 70px rgba(0,0,0,0.6);
   border-right:1px solid rgba(255,255,255,0.02);
   z-index:120; transition: transform .28s cubic-bezier(.2,.9,.3,1);
-  display:flex; flex-direction:column; gap:12px;
+  display:flex; flex-direction:column; gap:16px;
 }
 .sidebar.open{ transform: translateX(0); }
-.sidebar-top{ display:flex; align-items:center; justify-content:space-between; }
-.sidebar .brand{ font-weight:800; color:var(--accent); font-size:20px }
-.sidebar-nav{ display:flex; flex-direction:column; gap:8px; margin-top:8px }
+.sidebar-top{ display:flex; align-items:center; justify-content:space-between; margin-bottom:8px }
+.sidebar .brand{ font-weight:800; color:var(--accent); font-size:22px; letter-spacing:-0.5px }
+.sidebar .brand .sub{ color:var(--accent-2); font-weight:600 }
+.sidebar-nav{ display:flex; flex-direction:column; gap:6px; margin-top:12px }
 .side-link{
-  display:block; padding:12px 14px; border-radius:10px; color:var(--muted-text); text-decoration:none; font-weight:700;
-  background: transparent; transition: background .12s ease, transform .09s ease;
+  display:block; padding:14px 16px; border-radius:10px; color:var(--muted-text); text-decoration:none; font-weight:600;
+  background: transparent; transition: all .12s ease; font-size:15px;
+  border-left: 3px solid transparent;
 }
-.side-link:hover{ background: rgba(0,209,122,0.03); color:var(--text); transform:translateX(4px) }
+.side-link:hover{ 
+  background: rgba(0,209,122,0.06); color:var(--text); transform:translateX(4px);
+  border-left-color: var(--accent);
+}
+.side-link.logout{ color:var(--danger); margin-top:8px }
+.side-link.logout:hover{ background: rgba(255,107,107,0.08); border-left-color: var(--danger) }
+.sidebar-footer{ margin-top:auto; padding-top:12px; border-top:1px solid rgba(255,255,255,0.04); color:var(--muted-text); opacity:0.6 }
 
 /* Overlay */
 .overlay{
@@ -133,8 +151,7 @@ button.danger{ background:linear-gradient(90deg, #ff8a8a, #ff5b5b); color:white 
 
 /* Mobile tweaks: hide top links and show drawer button */
 @media (max-width:899px){
-  .right{ display:none !important } /* force hide desktop links on mobile */
-  .top-link{ display:none !important }
+  .right .top-link{ display:none !important } /* hide desktop links on mobile but keep notif bell */
   .container{ padding:12px }
   .card{ border-radius:12px }
   input{ padding:14px }
