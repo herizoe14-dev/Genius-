@@ -69,7 +69,7 @@ document.addEventListener('DOMContentLoaded', function () {
   // Close dropdown when clicking outside
   document.addEventListener('click', function(e) {
     if (notificationDropdown && !notificationDropdown.hidden) {
-      if (!notificationDropdown.contains(e.target) && e.target !== notificationBell) {
+      if (!notificationDropdown.contains(e.target) && !notificationBell.contains(e.target)) {
         closeNotificationDropdown();
       }
     }

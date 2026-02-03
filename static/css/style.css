@@ -340,7 +340,7 @@ button.danger{ background:linear-gradient(135deg, #ff8a8a, #ff5b5b); color:white
   .btn{ width:100%; display:block; text-align:center }
   .sidebar{ width:80%; max-width:320px }
   .actions{ flex-direction:column }
-  .notification-dropdown{ width:calc(100vw - 32px); right:-10px }
+  .notification-dropdown{ width:min(320px, calc(100vw - 40px)); right:0 }
   .stats-grid{ grid-template-columns:1fr }
 }
 
