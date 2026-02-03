@@ -4,10 +4,10 @@ import os
 import threading
 
 import telebot
+from telebot import types
 
 import auth
 import config
-from telebot import types 
 from limiteur import add_credits
 
 bot_admin = telebot.TeleBot(config.TOKEN_BOT_ADMIN)
