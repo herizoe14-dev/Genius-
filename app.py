@@ -10,10 +10,11 @@ Remarques :
 import os
 import json
 import time
+from secrets import token_hex, compare_digest
 from threading import Lock
 from flask import Flask, render_template, request, redirect, session, send_file, url_for, flash, make_response
 from downloader import download_content
-from limiteur import get_user_data, spend_credit, add_credits, save_data, DATA_FILE
+from limiteur import get_user_data, spend_credit, add_credits, save_data, DATA_FILE, mark_purchase_status_read
 import telebot
 import config
 import auth
@@ -93,6 +94,16 @@ def apply_security_headers(response):
     return response
 
 app.after_request(apply_security_headers)
+
+@app.context_processor
+def inject_csrf_token():
+    if 'user_id' not in session:
+        return {}
+    token = session.get('csrf_token')
+    if not token:
+        token = token_hex(16)
+        session['csrf_token'] = token
+    return {"csrf_token": token}
 
 # === Helpers ===
 def get_client_ip():
@@ -177,7 +188,9 @@ def home():
         return redirect(url_for('login'))
     user_id = session['user_id']
     user_info = get_user_data(user_id)
-    return render_template("dashboard.html", user_id=user_id, user=user_info)
+    purchase_status = user_info.get("purchase_status", "")
+    status_unread = not user_info.get("purchase_status_read", True) if purchase_status else False
+    return render_template("dashboard.html", user_id=user_id, user=user_info, purchase_status=purchase_status, status_unread=status_unread)
 
 # === Téléchargement ===
 @app.route('/download', methods=['GET', 'POST'])
@@ -221,7 +234,10 @@ def download_page():
                     except Exception:
                         app.logger.exception("Erreur rollback crédit")
                     msg = f"Erreur téléchargement : {e}"
-    return render_template("download.html", msg=msg)
+    user_info = get_user_data(session['user_id'])
+    purchase_status = user_info.get("purchase_status", "")
+    status_unread = not user_info.get("purchase_status_read", True) if purchase_status else False
+    return render_template("download.html", msg=msg, purchase_status=purchase_status, status_unread=status_unread)
 
 # === Boutique web ===
 @app.route('/shop', methods=['GET', 'POST'])
@@ -263,7 +279,22 @@ def shop():
         flash("Demande envoyée à l'administrateur (via Telegram).", "success")
         return redirect(url_for('shop'))
 
-    return render_template("shop.html")
+    user_info = get_user_data(session['user_id'])
+    purchase_status = user_info.get("purchase_status", "")
+    status_unread = not user_info.get("purchase_status_read", True) if purchase_status else False
+    return render_template("shop.html", purchase_status=purchase_status, status_unread=status_unread)
+
+@app.route('/purchase-status/read', methods=['POST'])
+def purchase_status_read():
+    if 'user_id' not in session:
+        return "", 204
+    csrf_token = session.get('csrf_token')
+    request_token = request.headers.get('X-CSRF-Token')
+    if not csrf_token or not request_token or not compare_digest(str(csrf_token), str(request_token)):
+        app.logger.warning("CSRF token mismatch for purchase status read")
+        return "CSRF validation failed", 403
+    mark_purchase_status_read(session['user_id'])
+    return "", 204
 
 # === Run ===
 if __name__ == '__main__':

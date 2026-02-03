@@ -6,6 +6,9 @@
   <title>Genius Bot - Web</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
   <meta name="theme-color" content="#06231f">
+  {% if session.get('user_id') %}
+    <meta name="csrf-token" content="{{ csrf_token }}">
+  {% endif %}
 </head>
 <body>
   <!-- Sidebar / Drawer -->
@@ -19,13 +22,13 @@
 
     <nav class="sidebar-nav" role="navigation" aria-label="Navigation principale">
       {% if session.get('user_id') %}
-        <a href="{{ url_for('home') }}" class="side-link">Dashboard</a>
-        <a href="{{ url_for('download_page') }}" class="side-link">Télécharger</a>
-        <a href="{{ url_for('shop') }}" class="side-link">Boutique</a>
+        <a href="{{ url_for('home') }}" class="side-link{% if request.path == url_for('home') %} active{% endif %}">Dashboard</a>
+        <a href="{{ url_for('download_page') }}" class="side-link{% if request.path == url_for('download_page') %} active{% endif %}">Télécharger</a>
+        <a href="{{ url_for('shop') }}" class="side-link{% if request.path == url_for('shop') %} active{% endif %}">Boutique</a>
         <a href="{{ url_for('logout') }}" class="side-link logout">Se déconnecter</a>
       {% else %}
-        <a href="{{ url_for('login') }}" class="side-link">Connexion</a>
-        <a href="{{ url_for('register') }}" class="side-link">Inscription</a>
+        <a href="{{ url_for('login') }}" class="side-link{% if request.path == url_for('login') %} active{% endif %}">Connexion</a>
+        <a href="{{ url_for('register') }}" class="side-link{% if request.path == url_for('register') %} active{% endif %}">Inscription</a>
       {% endif %}
     </nav>
 
@@ -51,6 +54,13 @@
     <div class="right">
       <!-- Desktop links only: hidden on mobile (see CSS) -->
       {% if session.get('user_id') %}
+        <button id="notificationBtn" class="icon-btn notification-btn" aria-label="Notifications" type="button">
+          🔔
+          <span class="sr-only">Ouvrir la notification d'achat</span>
+          {% if status_unread %}
+            <span class="badge" aria-hidden="true"></span>
+          {% endif %}
+        </button>
         <a class="top-link" href="{{ url_for('home') }}">Dashboard</a>
         <a class="top-link" href="{{ url_for('download_page') }}">Télécharger</a>
         <a class="top-link" href="{{ url_for('shop') }}">Boutique</a>
@@ -75,6 +85,14 @@
 
     {% block content %}{% endblock %}
   </main>
+
+  {% if session.get('user_id') and purchase_status %}
+    <div id="purchaseAlert" class="alert-window">
+      <div class="alert-title">Notification d'achat</div>
+      <div class="alert-message">{{ purchase_status }}</div>
+      <button id="closePurchaseAlert" class="btn close-alert" type="button">Fermer</button>
+    </div>
+  {% endif %}
 
   <footer class="footer">
     <small>© Genius Bot • Intégration Web</small>

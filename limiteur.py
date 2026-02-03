@@ -20,10 +20,22 @@ def get_user_data(user_id):
         data[user_str] = {
             "credits": 50,
             "expiration": date_exp,
-            "statut": "Nouveau"
+            "statut": "Nouveau",
+            "purchase_status": "",
+            "purchase_status_read": True
         }
         save_data(data)
-    
+
+    updated = False
+    if "purchase_status" not in data[user_str]:
+        data[user_str]["purchase_status"] = ""
+        updated = True
+    if "purchase_status_read" not in data[user_str]:
+        data[user_str]["purchase_status_read"] = True
+        updated = True
+    if updated:
+        save_data(data)
+
     return data[user_str]
 
 def save_data(data):
@@ -56,6 +68,41 @@ def add_credits(user_id, amount):
     user_str = str(user_id)
     if user_str in data:
         data[user_str]['credits'] += int(amount)
+        save_data(data)
+        return True
+    return False
+
+def set_purchase_status(user_id, message):
+    """Met à jour le statut d'achat et le marque comme non lu."""
+    if os.path.exists(DATA_FILE):
+        with open(DATA_FILE, "r") as f:
+            data = json.load(f)
+    else:
+        data = {}
+    user_str = str(user_id)
+    if user_str not in data:
+        date_exp = (datetime.now() + timedelta(days=30)).strftime("%d/%m/%Y")
+        data[user_str] = {
+            "credits": 50,
+            "expiration": date_exp,
+            "statut": "Nouveau",
+            "purchase_status": "",
+            "purchase_status_read": True
+        }
+    data[user_str]["purchase_status"] = str(message)
+    data[user_str]["purchase_status_read"] = False
+    save_data(data)
+    return True
+
+def mark_purchase_status_read(user_id):
+    """Marque le statut d'achat comme lu."""
+    if not os.path.exists(DATA_FILE):
+        return False
+    with open(DATA_FILE, "r") as f:
+        data = json.load(f)
+    user_str = str(user_id)
+    if user_str in data:
+        data[user_str]["purchase_status_read"] = True
         save_data(data)
         return True
     return False

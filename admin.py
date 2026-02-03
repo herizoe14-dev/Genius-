@@ -1,9 +1,11 @@
 import telebot, config, threading, json, os
 from telebot import types 
-from limiteur import add_credits
+from limiteur import add_credits, set_purchase_status
 
 bot_admin = telebot.TeleBot(config.TOKEN_BOT_ADMIN)
 bot_user = telebot.TeleBot(config.TOKEN_BOT_USER)
+SHOP_UNAVAILABLE_TELEGRAM_MESSAGE = "🚫 **Achat indisponible**\nLes achats ne sont pas disponibles pour le moment."
+SHOP_UNAVAILABLE_WEB_STATUS = "🚫 Achat indisponible pour le moment. Réessayez plus tard."
 
 # --- FONCTION POUR LIRE LE JSON ---
 def get_maintenance_config():
@@ -46,7 +48,9 @@ def admin_stats(message):
 
     markup = types.InlineKeyboardMarkup()
     btn_maintenance = types.InlineKeyboardButton("📢 Diffuser Maintenance", callback_data="broadcast_off")
+    btn_shop_off = types.InlineKeyboardButton("🛑 Achat indisponible", callback_data="broadcast_shop_off")
     markup.add(btn_maintenance)
+    markup.add(btn_shop_off)
     bot_admin.send_message(message.chat.id, stats_msg, reply_markup=markup, parse_mode="Markdown")
 
 # --- GESTION DES ACTIONS ---
@@ -57,7 +61,7 @@ def process_admin_actions(call):
     msg_text = config_data["maintenance_text"]
     url_link = config_data["contact_url"]
 
-    if call.data == "broadcast_off":
+    if call.data in ("broadcast_off", "broadcast_shop_off"):
         DATA_FILE = "users_data.json"
         with open(DATA_FILE, "r") as f:
             data = json.load(f)
@@ -65,9 +69,15 @@ def process_admin_actions(call):
         count = 0
         for u_id in data.keys():
             try:
-                markup = types.InlineKeyboardMarkup()
-                markup.add(types.InlineKeyboardButton("💬 REJOINDRE LA DISCUSSION", url=url_link))
-                bot_user.send_message(u_id, msg_text, reply_markup=markup, parse_mode="Markdown")
+                outgoing_text = msg_text
+                if call.data == "broadcast_shop_off":
+                    outgoing_text = SHOP_UNAVAILABLE_TELEGRAM_MESSAGE
+                    set_purchase_status(u_id, SHOP_UNAVAILABLE_WEB_STATUS)
+                    bot_user.send_message(u_id, outgoing_text, parse_mode="Markdown")
+                else:
+                    markup = types.InlineKeyboardMarkup()
+                    markup.add(types.InlineKeyboardButton("💬 REJOINDRE LA DISCUSSION", url=url_link))
+                    bot_user.send_message(u_id, outgoing_text, reply_markup=markup, parse_mode="Markdown")
                 count += 1
             except: continue
         bot_admin.answer_callback_query(call.id, f"✅ Envoyé à {count} personnes")
@@ -80,18 +90,21 @@ def process_admin_actions(call):
             pack = parts[2]
             amount = 10 if "10" in pack else 50 if "50" in pack else 100
             add_credits(u_id, amount)
+            set_purchase_status(u_id, f"✅ Achat confirmé (+{amount} crédits).")
             bot_admin.edit_message_text(f"✅ Validé (+{amount}) pour {u_id}", call.message.chat.id, call.message.message_id)
-            bot_user.send_message(u_id, f"🎉 **Achat validé !** +{amount} crédits ajoutés.")
+            bot_user.send_message(u_id, f"🎉 **Achat validé !** +{amount} crédits ajoutés.", parse_mode="Markdown")
         
         elif action == "admin_off":
             markup = types.InlineKeyboardMarkup()
             markup.add(types.InlineKeyboardButton("💬 REJOINDRE LA DISCUSSION", url=url_link))
-            bot_admin.edit_message_text(f"🚫 Info maintenance envoyée à {u_id}", call.message.chat.id, call.message.message_id)
-            bot_user.send_message(u_id, msg_text, reply_markup=markup, parse_mode="Markdown")
+            set_purchase_status(u_id, SHOP_UNAVAILABLE_WEB_STATUS)
+            bot_admin.edit_message_text(f"🚫 Achat indisponible envoyé à {u_id}", call.message.chat.id, call.message.message_id)
+            bot_user.send_message(u_id, SHOP_UNAVAILABLE_TELEGRAM_MESSAGE, parse_mode="Markdown")
         
         elif action == "admin_no":
+            set_purchase_status(u_id, "❌ Achat refusé par l'administrateur.")
             bot_admin.edit_message_text(f"❌ Refusé pour {u_id}", call.message.chat.id, call.message.message_id)
-            bot_user.send_message(u_id, "❌ Votre demande d'achat a été refusée.")
+            bot_user.send_message(u_id, "❌ Votre demande d'achat a été refusée.", parse_mode="Markdown")
 
 # --- NOTIFICATIONS (INCHANGÉES) ---
 def notify_new_purchase(user_id, username, pack_name):
