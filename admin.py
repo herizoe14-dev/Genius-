@@ -6,7 +6,7 @@ bot_admin = telebot.TeleBot(config.TOKEN_BOT_ADMIN)
 bot_user = telebot.TeleBot(config.TOKEN_BOT_USER)
 
 def resolve_telegram_id(user_id):
-    """Resolve a Telegram chat ID from a numeric ID or username."""
+    """Resolve a Telegram chat ID from a numeric ID or auth user key."""
     user_str = str(user_id).strip()
     if user_str.isdigit():
         return int(user_str)
@@ -117,12 +117,15 @@ def process_admin_actions(call):
         
         if action == "admin_ok":
             pack = parts[2]
-            if str(pack).isdigit():
-                amount = int(pack)
-            elif "10" in pack:
+            pack_str = str(pack).strip()
+            if pack_str in ("10", "50", "100"):
+                amount = int(pack_str)
+            elif "10" in pack_str:
                 amount = 10
-            elif "50" in pack:
+            elif "50" in pack_str:
                 amount = 50
+            elif "100" in pack_str:
+                amount = 100
             else:
                 amount = 100
             add_credits(u_id, amount)

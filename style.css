@@ -94,7 +94,7 @@ button.danger{ background:linear-gradient(90deg, #ff8a8a, #ff5b5b); color:white 
   padding:10px 12px;
   border-radius:10px;
   margin-bottom:10px;
-  border: 1px solid rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
   color: var(--text);
 }
 .flash.success{background:linear-gradient(90deg, rgba(0,209,122,0.12), rgba(0,209,122,0.06))}
