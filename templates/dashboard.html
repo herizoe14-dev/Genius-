@@ -1,13 +1,50 @@
 {% extends "base.html" %}
 {% block content %}
+<div class="welcome-banner">
+  <div class="welcome-content">
+    <h1 class="welcome-title">👋 Bienvenue, {{ user_id }} !</h1>
+    <p class="welcome-subtitle">Prêt à télécharger du contenu de qualité ?</p>
+  </div>
+</div>
+
+<div class="stats-grid">
+  <div class="stat-card">
+    <span class="stat-icon">💎</span>
+    <span class="stat-value">{{ user.credits }}</span>
+    <span class="stat-label">Crédits disponibles</span>
+  </div>
+  <div class="stat-card">
+    <span class="stat-icon">⏰</span>
+    <span class="stat-value stat-value-sm">{{ user.expiration }}</span>
+    <span class="stat-label">Expiration</span>
+  </div>
+  <div class="stat-card">
+    <span class="stat-icon">🚀</span>
+    <span class="stat-value">∞</span>
+    <span class="stat-label">Téléchargements</span>
+  </div>
+</div>
+
 <div class="card">
-  <h2>👋 Bienvenue</h2>
-  <p><strong>ID :</strong> {{ user_id }}</p>
-  <p><strong>Crédits :</strong> {{ user.credits }}</p>
-  <p><strong>Expiration :</strong> {{ user.expiration }}</p>
-  <div class="actions">
-    <a class="btn" href="{{ url_for('download_page') }}">Télécharger un média</a>
-    <a class="btn" href="{{ url_for('shop') }}">Aller à la boutique</a>
+  <h2>🎯 Actions rapides</h2>
+  <p class="muted">Choisissez ce que vous souhaitez faire aujourd'hui.</p>
+  
+  <div class="feature-grid">
+    <a href="{{ url_for('download_page') }}" class="feature-item">
+      <span class="feature-icon">📥</span>
+      <h3 class="feature-title">Télécharger un média</h3>
+      <p class="feature-desc">Convertissez vos vidéos YouTube préférées en MP3 ou MP4.</p>
+    </a>
+    <a href="{{ url_for('shop') }}" class="feature-item">
+      <span class="feature-icon">🛒</span>
+      <h3 class="feature-title">Acheter des crédits</h3>
+      <p class="feature-desc">Rechargez votre compte pour continuer à télécharger.</p>
+    </a>
+    <a href="{{ url_for('about') }}" class="feature-item">
+      <span class="feature-icon">📖</span>
+      <h3 class="feature-title">En savoir plus</h3>
+      <p class="feature-desc">Découvrez toutes les fonctionnalités de Genius Bot.</p>
+    </a>
   </div>
 </div>
 {% endblock %}
