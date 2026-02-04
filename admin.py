@@ -161,18 +161,21 @@ def process_admin_actions(call):
         for u_id in data.keys():
             try:
                 target_id = resolve_telegram_id(u_id)
-                if not target_id:
-                    continue
-                markup = types.InlineKeyboardMarkup()
-                markup.add(types.InlineKeyboardButton("💬 REJOINDRE LA DISCUSSION", url=url_link))
-                send_telegram_message(
-                    bot_user,
-                    target_id,
-                    msg_text,
-                    log_context="broadcast_maintenance",
-                    reply_markup=markup,
-                    parse_mode="Markdown"
-                )
+                if target_id:
+                    # User has Telegram - send via Telegram
+                    markup = types.InlineKeyboardMarkup()
+                    markup.add(types.InlineKeyboardButton("💬 REJOINDRE LA DISCUSSION", url=url_link))
+                    send_telegram_message(
+                        bot_user,
+                        target_id,
+                        msg_text,
+                        log_context="broadcast_maintenance",
+                        reply_markup=markup,
+                        parse_mode="Markdown"
+                    )
+                else:
+                    # User doesn't have Telegram - send via web notification
+                    add_web_notification(u_id, "🚨 Maintenance en cours. Le service est temporairement indisponible.", "admin_message")
                 count += 1
             except Exception:
                 continue
