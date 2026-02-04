@@ -19,7 +19,7 @@ import telebot
 import config
 import auth
 from admin import resolve_telegram_id, send_telegram_message
-from web_notifications import get_user_web_notifications
+from web_notifications import get_user_web_notifications, clear_user_web_notifications
 
 # === Configuration Flask ===
 app = Flask(__name__, static_folder="static", template_folder="templates")
@@ -297,6 +297,46 @@ def get_notifications():
     notifications.sort(key=lambda x: x.get("timestamp", 0), reverse=True)
     
     return {"count": len(notifications), "notifications": notifications}, 200
+
+
+@app.route('/api/notifications/clear', methods=['POST'])
+def clear_notifications():
+    """API endpoint pour supprimer toutes les notifications d'un utilisateur."""
+    if 'user_id' not in session:
+        return {"success": False, "message": "Non authentifié"}, 401
+    
+    user_id = session['user_id']
+    
+    # Supprimer les notifications des achats en attente pour cet utilisateur
+    ensure_pending_log()
+    try:
+        with pending_lock:
+            # Lire toutes les lignes et conserver celles qui ne sont pas pour cet utilisateur
+            remaining_lines = []
+            with open(PENDING_LOG, "r", encoding="utf-8") as f:
+                for line in f:
+                    line_stripped = line.strip()
+                    if line_stripped:
+                        try:
+                            entry = json.loads(line_stripped)
+                            if entry.get("user") != user_id:
+                                remaining_lines.append(line_stripped)
+                        except json.JSONDecodeError:
+                            remaining_lines.append(line_stripped)
+            # Réécrire le fichier sans les notifications de cet utilisateur
+            with open(PENDING_LOG, "w", encoding="utf-8") as f:
+                for line in remaining_lines:
+                    f.write(line + "\n")
+    except Exception:
+        app.logger.exception("Erreur lors de la suppression des notifications depuis pending_purchases.log")
+    
+    # Supprimer les notifications web (messages de l'admin)
+    try:
+        clear_user_web_notifications(user_id)
+    except Exception:
+        app.logger.exception("Erreur lors de la suppression des notifications web")
+    
+    return {"success": True, "message": "Notifications supprimées"}, 200
 
 # === Téléchargement ===
 @app.route('/download', methods=['GET', 'POST'])

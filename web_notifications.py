@@ -48,3 +48,15 @@ def get_user_web_notifications(user_id):
     with web_notifications_lock:
         data = _load_web_notifications()
         return data.get(str(user_id), [])
+
+
+def clear_user_web_notifications(user_id):
+    """Clear all notifications for a specific user."""
+    with web_notifications_lock:
+        data = _load_web_notifications()
+        user_id = str(user_id)
+        if user_id in data:
+            data[user_id] = []
+            _save_web_notifications(data)
+            return True
+        return False

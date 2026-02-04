@@ -147,6 +147,38 @@ document.addEventListener('DOMContentLoaded', function () {
     if(e.target === bagAlertModal) closeBagAlertModal();
   });
 
+  // === Delete all notifications ===
+  var deleteAllBtn = document.getElementById('deleteAllNotifications');
+  
+  function deleteAllNotifications(){
+    if(notificationsData.length === 0){
+      return;
+    }
+    
+    fetch('/api/notifications/clear', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    })
+    .then(function(response){
+      if(!response.ok) throw new Error('Network response was not ok');
+      return response.json();
+    })
+    .then(function(data){
+      if(data.success){
+        notificationsData = [];
+        updateNotificationBadge(0);
+        renderNotifications();
+      }
+    })
+    .catch(function(error){
+      console.error('Error deleting notifications:', error);
+    });
+  }
+  
+  if(deleteAllBtn) deleteAllBtn.addEventListener('click', deleteAllNotifications);
+
   // Close bag alert with Escape key
   document.addEventListener('keydown', function(e){
     if(e.key === 'Escape' && bagAlertModal && bagAlertModal.classList.contains('show')){
