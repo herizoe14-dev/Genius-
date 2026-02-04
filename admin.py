@@ -209,8 +209,9 @@ def process_admin_actions(call):
                 log_context="purchase_approved",
                 parse_mode="Markdown"
             )
-            # Always send web notification for web users
-            add_web_notification(u_id, f"🎉 Achat validé ! +{amount} crédits ont été ajoutés à votre compte.", "admin_message")
+            # Send web notification if Telegram message failed (user without Telegram)
+            if not telegram_sent:
+                add_web_notification(u_id, f"🎉 Achat validé ! +{amount} crédits ont été ajoutés à votre compte.", "admin_message")
             log_admin_action("approve_purchase", u_id, f"+{amount} crédits")
         
         elif action == "admin_off":
@@ -226,8 +227,9 @@ def process_admin_actions(call):
                 reply_markup=markup,
                 parse_mode="Markdown"
             )
-            # Always send web notification for web users
-            add_web_notification(u_id, "🚨 Maintenance en cours. Le service est temporairement indisponible.", "admin_message")
+            # Send web notification if Telegram message failed (user without Telegram)
+            if not telegram_sent:
+                add_web_notification(u_id, "🚨 Maintenance en cours. Le service est temporairement indisponible.", "admin_message")
             log_admin_action("send_maintenance", u_id, "Notification de maintenance")
         
         elif action == "admin_no":
@@ -239,8 +241,9 @@ def process_admin_actions(call):
                 "❌ Votre demande d'achat a été refusée.",
                 log_context="purchase_rejected"
             )
-            # Always send web notification for web users
-            add_web_notification(u_id, "❌ Votre demande d'achat a été refusée.", "admin_message")
+            # Send web notification if Telegram message failed (user without Telegram)
+            if not telegram_sent:
+                add_web_notification(u_id, "❌ Votre demande d'achat a été refusée.", "admin_message")
             log_admin_action("reject_purchase", u_id, "Achat refusé")
 
 # --- NOTIFICATIONS (INCHANGÉES) ---

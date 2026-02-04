@@ -38,7 +38,7 @@ document.addEventListener('DOMContentLoaded', function () {
   const NOTIFICATION_REFRESH_INTERVAL_MS = 30000; // 30 seconds
   
   // Store notifications data for modal display
-  var notificationsData = [];
+  let notificationsData = [];
 
   function updateNotificationBadge(count){
     // Update notification icon badge only
