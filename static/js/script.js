@@ -78,4 +78,34 @@ document.addEventListener('DOMContentLoaded', function () {
     fetchNotifications();
     setInterval(fetchNotifications, NOTIFICATION_REFRESH_INTERVAL_MS);
   }
+
+  // === Bag Alert Modal ===
+  const notificationBtn = document.getElementById('notificationBtn');
+  const bagAlertModal = document.getElementById('bagAlertModal');
+  const closeBagAlert = document.getElementById('closeBagAlert');
+
+  function openBagAlertModal(){
+    if(!bagAlertModal) return;
+    bagAlertModal.classList.add('show');
+    document.body.style.overflow = 'hidden';
+  }
+
+  function closeBagAlertModal(){
+    if(!bagAlertModal) return;
+    bagAlertModal.classList.remove('show');
+    document.body.style.overflow = '';
+  }
+
+  if(notificationBtn) notificationBtn.addEventListener('click', openBagAlertModal);
+  if(closeBagAlert) closeBagAlert.addEventListener('click', closeBagAlertModal);
+  if(bagAlertModal) bagAlertModal.addEventListener('click', function(e){
+    if(e.target === bagAlertModal) closeBagAlertModal();
+  });
+
+  // Close bag alert with Escape key
+  document.addEventListener('keydown', function(e){
+    if(e.key === 'Escape' && bagAlertModal && bagAlertModal.classList.contains('show')){
+      closeBagAlertModal();
+    }
+  });
 });

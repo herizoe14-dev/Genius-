@@ -68,6 +68,10 @@ body{
 }
 .notification-icon svg{
   display:block;
+  cursor:pointer;
+}
+.notification-right{
+  margin-left:auto;
 }
 .notification-badge{
   position:absolute;
@@ -166,6 +170,67 @@ button.danger{ background:linear-gradient(90deg, #ff8a8a, #ff5b5b); color:white 
 
 /* Footer */
 .footer{padding:22px;text-align:center;color:var(--muted-text)}
+
+/* Alert Modal for bag image */
+.bag-alert-modal{
+  position:fixed;
+  inset:0;
+  background:rgba(0,0,0,0.7);
+  z-index:200;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  opacity:0;
+  visibility:hidden;
+  transition: opacity .3s ease, visibility .3s ease;
+}
+.bag-alert-modal.show{
+  opacity:1;
+  visibility:visible;
+}
+.bag-alert-content{
+  background: linear-gradient(180deg, var(--card), var(--bg));
+  border-radius: var(--radius);
+  padding: 32px;
+  box-shadow: var(--shadow), 0 0 60px rgba(0,209,122,0.1);
+  border: 1px solid rgba(255,255,255,0.05);
+  text-align:center;
+  max-width:320px;
+  animation: modalPop .3s ease;
+}
+@keyframes modalPop{
+  0%{ transform:scale(0.85); opacity:0; }
+  100%{ transform:scale(1); opacity:1; }
+}
+.bag-alert-content svg{
+  width:80px;
+  height:80px;
+  color:var(--accent);
+  margin-bottom:16px;
+}
+.bag-alert-content h3{
+  color:var(--accent);
+  margin:0 0 12px;
+  font-size:1.3rem;
+}
+.bag-alert-content p{
+  color:var(--muted-text);
+  margin:0 0 20px;
+  font-size:0.95rem;
+}
+.bag-alert-close{
+  background: linear-gradient(90deg, var(--accent), var(--accent-2));
+  color:#002b20;
+  border:none;
+  padding:10px 24px;
+  border-radius:10px;
+  cursor:pointer;
+  font-weight:700;
+  transition:transform .12s ease;
+}
+.bag-alert-close:hover{
+  transform:translateY(-2px);
+}
 
 /* Sidebar (Drawer) */
 .sidebar{
