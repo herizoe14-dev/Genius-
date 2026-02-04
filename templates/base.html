@@ -3,9 +3,13 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-  <title>Genius Bot - Web</title>
+  <title>Genius Bot - Téléchargement YouTube Premium</title>
+  <meta name="description" content="Genius Bot - Téléchargez vos vidéos YouTube préférées en MP3 ou MP4 avec un système de crédits sécurisé.">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-  <meta name="theme-color" content="#06231f">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <meta name="theme-color" content="#050d0b">
 </head>
 <body>
   <!-- Sidebar / Drawer -->
@@ -19,20 +23,20 @@
 
     <nav class="sidebar-nav" role="navigation" aria-label="Navigation principale">
       {% if session.get('user_id') %}
-        <a href="{{ url_for('home') }}" class="side-link">Dashboard</a>
-        <a href="{{ url_for('download_page') }}" class="side-link">Télécharger</a>
-        <a href="{{ url_for('shop') }}" class="side-link">Boutique</a>
-        <a href="{{ url_for('about') }}" class="side-link">À propos</a>
-        <a href="{{ url_for('logout') }}" class="side-link logout">Se déconnecter</a>
+        <a href="{{ url_for('home') }}" class="side-link">🏠 Dashboard</a>
+        <a href="{{ url_for('download_page') }}" class="side-link">📥 Télécharger</a>
+        <a href="{{ url_for('shop') }}" class="side-link">🛒 Boutique</a>
+        <a href="{{ url_for('about') }}" class="side-link">📖 À propos</a>
+        <a href="{{ url_for('logout') }}" class="side-link logout">🚪 Se déconnecter</a>
       {% else %}
-        <a href="{{ url_for('login') }}" class="side-link">Connexion</a>
-        <a href="{{ url_for('register') }}" class="side-link">Inscription</a>
-        <a href="{{ url_for('about') }}" class="side-link">À propos</a>
+        <a href="{{ url_for('login') }}" class="side-link">🔐 Connexion</a>
+        <a href="{{ url_for('register') }}" class="side-link">✨ Inscription</a>
+        <a href="{{ url_for('about') }}" class="side-link">📖 À propos</a>
       {% endif %}
     </nav>
 
     <div class="sidebar-footer">
-      <small>© Genius Bot</small>
+      <small>© 2024 Genius Bot</small>
     </div>
   </aside>
 
@@ -53,15 +57,15 @@
     <div class="right">
       <!-- Desktop links only: hidden on mobile (see CSS) -->
       {% if session.get('user_id') %}
-        <a class="top-link" href="{{ url_for('home') }}">Dashboard</a>
-        <a class="top-link" href="{{ url_for('download_page') }}">Télécharger</a>
-        <a class="top-link" href="{{ url_for('shop') }}">Boutique</a>
-        <a class="top-link" href="{{ url_for('about') }}">À propos</a>
-        <a class="top-link" href="{{ url_for('logout') }}">Se déconnecter</a>
+        <a class="top-link" href="{{ url_for('home') }}">🏠 Dashboard</a>
+        <a class="top-link" href="{{ url_for('download_page') }}">📥 Télécharger</a>
+        <a class="top-link" href="{{ url_for('shop') }}">🛒 Boutique</a>
+        <a class="top-link" href="{{ url_for('about') }}">📖 À propos</a>
+        <a class="top-link" href="{{ url_for('logout') }}">🚪 Déconnexion</a>
       {% else %}
-        <a class="top-link" href="{{ url_for('login') }}">Connexion</a>
-        <a class="top-link" href="{{ url_for('register') }}">Inscription</a>
-        <a class="top-link" href="{{ url_for('about') }}">À propos</a>
+        <a class="top-link" href="{{ url_for('login') }}">🔐 Connexion</a>
+        <a class="top-link" href="{{ url_for('register') }}">✨ Inscription</a>
+        <a class="top-link" href="{{ url_for('about') }}">📖 À propos</a>
       {% endif %}
     </div>
     
@@ -69,10 +73,9 @@
     {% if session.get('user_id') %}
       <button id="notificationBtn" class="icon-btn notification-icon notification-right" aria-label="Notifications">
         <svg id="bagIcon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <title>Sac</title>
-          <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/>
-          <line x1="3" y1="6" x2="21" y2="6"/>
-          <path d="M16 10a4 4 0 0 1-8 0"/>
+          <title>Notifications</title>
+          <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+          <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
         </svg>
         <span id="notificationBadge" class="notification-badge" hidden></span>
       </button>
@@ -94,16 +97,15 @@
   </main>
 
   <footer class="footer">
-    <small>© Genius Bot • Intégration Web</small>
+    <small>© 2024 Genius Bot • Téléchargement YouTube Premium</small>
   </footer>
 
   <!-- Notification Modal -->
   <div id="bagAlertModal" class="bag-alert-modal">
     <div class="bag-alert-content">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/>
-        <line x1="3" y1="6" x2="21" y2="6"/>
-        <path d="M16 10a4 4 0 0 1-8 0"/>
+        <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+        <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
       </svg>
       <h3>🔔 Notifications</h3>
       <div id="notificationList" class="notification-list"></div>

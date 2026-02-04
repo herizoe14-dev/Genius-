@@ -2,15 +2,52 @@
 {% block content %}
 <div class="card">
   <h2>📥 Téléchargement</h2>
-  <form method="post">
-    <input type="text" name="url" placeholder="Colle le lien YouTube" required>
-    <select name="mode">
-      <option value="mp3">🎵 MP3</option>
-      <option value="mp4">🎥 MP4</option>
-    </select>
-    <button type="submit">Télécharger (1 crédit)</button>
+  <p class="muted">Convertissez vos vidéos YouTube préférées en MP3 ou MP4 de haute qualité.</p>
+  
+  <form method="post" id="downloadForm">
+    <div class="form-group">
+      <label class="form-label">🔗 Lien YouTube</label>
+      <input type="text" name="url" placeholder="https://www.youtube.com/watch?v=..." required>
+      <p class="form-hint">Collez l'URL complète de la vidéo YouTube</p>
+    </div>
+    
+    <div class="form-group">
+      <label class="form-label">📦 Format de sortie</label>
+      <div class="download-options">
+        <label class="download-option selected">
+          <input type="radio" name="mode" value="mp3" checked>
+          <span class="download-option-icon">🎵</span>
+          <span class="download-option-label">MP3</span>
+        </label>
+        <label class="download-option">
+          <input type="radio" name="mode" value="mp4">
+          <span class="download-option-icon">🎥</span>
+          <span class="download-option-label">MP4</span>
+        </label>
+      </div>
+    </div>
+    
+    <button type="submit">
+      ⬇️ Télécharger (1 crédit)
+    </button>
   </form>
+  
   {% if msg %}<p class="error">{{ msg }}</p>{% endif %}
-  <p class="muted">Les téléchargements lourds peuvent prendre du temps. Restez sur la page.</p>
+  
+  <p class="muted" style="text-align:center;margin-top:20px;">
+    ⏳ Les téléchargements lourds peuvent prendre du temps. Restez sur la page.
+  </p>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const downloadOptions = document.querySelectorAll('.download-option');
+  downloadOptions.forEach(function(option) {
+    option.addEventListener('click', function() {
+      downloadOptions.forEach(function(o) { o.classList.remove('selected'); });
+      option.classList.add('selected');
+    });
+  });
+});
+</script>
 {% endblock %}

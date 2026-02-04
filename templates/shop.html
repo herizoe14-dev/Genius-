@@ -2,18 +2,56 @@
 {% block content %}
 <div class="card">
   <h2>🛒 Boutique</h2>
-  <form method="post">
-    <label>
-      <input type="radio" name="pack" value="10" checked> Pack Bronze — 10 Crédits
-    </label><br>
-    <label>
-      <input type="radio" name="pack" value="50"> Pack Argent — 50 Crédits
-    </label><br>
-    <label>
-      <input type="radio" name="pack" value="100"> Pack Or — 100 Crédits
-    </label><br><br>
-    <button type="submit">Commander</button>
+  <p class="muted">Choisissez votre pack de crédits et débloquez plus de téléchargements !</p>
+  
+  <form method="post" id="shopForm">
+    <div class="pack-grid">
+      <label class="pack-card selected" data-pack="10">
+        <input type="radio" name="pack" value="10" checked>
+        <span class="pack-icon">🥉</span>
+        <h3 class="pack-name">Pack Bronze</h3>
+        <span class="pack-credits">10 Crédits</span>
+        <p class="pack-desc">Parfait pour découvrir</p>
+      </label>
+      
+      <label class="pack-card" data-pack="50">
+        <span class="pack-badge popular">Populaire</span>
+        <input type="radio" name="pack" value="50">
+        <span class="pack-icon">🥈</span>
+        <h3 class="pack-name">Pack Argent</h3>
+        <span class="pack-credits">50 Crédits</span>
+        <p class="pack-desc">Le meilleur rapport qualité-prix</p>
+      </label>
+      
+      <label class="pack-card" data-pack="100">
+        <span class="pack-badge best">Meilleur choix</span>
+        <input type="radio" name="pack" value="100">
+        <span class="pack-icon">🥇</span>
+        <h3 class="pack-name">Pack Or</h3>
+        <span class="pack-credits">100 Crédits</span>
+        <p class="pack-desc">Pour les utilisateurs intensifs</p>
+      </label>
+    </div>
+    
+    <button type="submit" class="form-submit-btn">
+      Commander maintenant
+    </button>
   </form>
-  <p class="muted">Ta commande sera envoyée à l'administrateur pour validation.</p>
+  
+  <p class="muted" style="text-align:center;margin-top:20px;">
+    📩 Votre commande sera envoyée à l'administrateur pour validation.
+  </p>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const packCards = document.querySelectorAll('.pack-card');
+  packCards.forEach(function(card) {
+    card.addEventListener('click', function() {
+      packCards.forEach(function(c) { c.classList.remove('selected'); });
+      card.classList.add('selected');
+    });
+  });
+});
+</script>
 {% endblock %}
