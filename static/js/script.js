@@ -126,7 +126,7 @@ document.addEventListener('DOMContentLoaded', function () {
       item.appendChild(content);
       
       // Add delete button for deletable notifications
-      if(notif.deletable && notif.id !== undefined){
+      if(notif.deletable && notif.id != null){
         var deleteBtn = document.createElement('button');
         deleteBtn.className = 'notification-delete-btn';
         deleteBtn.title = 'Supprimer';
@@ -149,6 +149,8 @@ document.addEventListener('DOMContentLoaded', function () {
     })
     .then(function(response){
       if(response.ok){
+        // Check if this is the last item before removing
+        var isLastItem = notificationList && notificationList.children.length === 1;
         // Remove from DOM with animation
         itemElement.style.opacity = '0';
         itemElement.style.transform = 'translateX(20px)';
@@ -156,8 +158,8 @@ document.addEventListener('DOMContentLoaded', function () {
           itemElement.remove();
           // Refresh notifications data
           fetchNotifications();
-          // Check if list is now empty
-          if(notificationList && notificationList.children.length === 0){
+          // Show empty message if list is now empty
+          if(isLastItem && notificationList){
             var emptyMsg = document.createElement('p');
             emptyMsg.className = 'notification-empty';
             emptyMsg.textContent = 'Aucune notification pour le moment.';

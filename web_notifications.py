@@ -4,6 +4,7 @@ web_notifications.py — Module for handling web notifications for users without
 import json
 import os
 import time
+import uuid
 from threading import Lock
 
 WEB_NOTIFICATIONS_FILE = "web_notifications.json"
@@ -35,6 +36,7 @@ def add_web_notification(user_id, message, notif_type="admin_message"):
         if user_id not in data:
             data[user_id] = []
         data[user_id].append({
+            "id": str(uuid.uuid4()),
             "type": notif_type,
             "message": message,
             "timestamp": int(time.time()),
@@ -47,27 +49,20 @@ def get_user_web_notifications(user_id):
     """Get notifications for a specific user."""
     with web_notifications_lock:
         data = _load_web_notifications()
-        notifications = data.get(str(user_id), [])
-        # Add index to each notification for deletion reference
-        for i, notif in enumerate(notifications):
-            notif["id"] = i
-        return notifications
+        return data.get(str(user_id), [])
 
 
 def delete_web_notification(user_id, notif_id):
-    """Delete a specific notification for a user by its index."""
+    """Delete a specific notification for a user by its unique ID."""
     with web_notifications_lock:
         data = _load_web_notifications()
         user_id = str(user_id)
         if user_id not in data:
             return False
         notifications = data[user_id]
-        try:
-            notif_id = int(notif_id)
-            if 0 <= notif_id < len(notifications):
-                del notifications[notif_id]
+        for i, notif in enumerate(notifications):
+            if notif.get("id") == notif_id:
+                del notifications[i]
                 _save_web_notifications(data)
                 return True
-        except (ValueError, IndexError):
-            pass
         return False

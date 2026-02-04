@@ -302,7 +302,7 @@ def get_notifications():
     return {"count": len(notifications), "notifications": notifications}, 200
 
 
-@app.route('/api/notifications/<int:notif_id>', methods=['DELETE'])
+@app.route('/api/notifications/<notif_id>', methods=['DELETE'])
 def delete_notification(notif_id):
     """API endpoint pour supprimer une notification web."""
     if 'user_id' not in session:
