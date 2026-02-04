@@ -52,17 +52,6 @@
     </div>
 
     <div class="right">
-      <!-- Notification icon with badge -->
-      {% if session.get('user_id') %}
-        <button id="notificationBtn" class="icon-btn notification-icon" aria-label="Notifications">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <title>Notifications</title>
-            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
-            <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
-          </svg>
-          <span id="notificationBadge" class="notification-badge" hidden></span>
-        </button>
-      {% endif %}
       <!-- Desktop links only: hidden on mobile (see CSS) -->
       {% if session.get('user_id') %}
         <a class="top-link" href="{{ url_for('home') }}">Dashboard</a>
@@ -76,6 +65,19 @@
         <a class="top-link" href="{{ url_for('about') }}">À propos</a>
       {% endif %}
     </div>
+    
+    <!-- Notification icon with bag - positioned at far right -->
+    {% if session.get('user_id') %}
+      <button id="notificationBtn" class="icon-btn notification-icon notification-right" aria-label="Notifications">
+        <svg id="bagIcon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <title>Sac</title>
+          <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/>
+          <line x1="3" y1="6" x2="21" y2="6"/>
+          <path d="M16 10a4 4 0 0 1-8 0"/>
+        </svg>
+        <span id="notificationBadge" class="notification-badge" hidden></span>
+      </button>
+    {% endif %}
   </header>
 
   <main class="container">
@@ -95,6 +97,20 @@
   <footer class="footer">
     <small>© Genius Bot • Intégration Web</small>
   </footer>
+
+  <!-- Bag Image Alert Modal -->
+  <div id="bagAlertModal" class="bag-alert-modal">
+    <div class="bag-alert-content">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/>
+        <line x1="3" y1="6" x2="21" y2="6"/>
+        <path d="M16 10a4 4 0 0 1-8 0"/>
+      </svg>
+      <h3>🛒 Notifications</h3>
+      <p>Consultez vos alertes et messages ici.</p>
+      <button class="bag-alert-close" id="closeBagAlert">Fermer</button>
+    </div>
+  </div>
 
   <script src="{{ url_for('static', filename='js/script.js') }}"></script>
 </body>
