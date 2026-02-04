@@ -35,26 +35,19 @@ document.addEventListener('DOMContentLoaded', function () {
 
   // === Notification badge auto-refresh ===
   const notificationBadge = document.getElementById('notificationBadge');
-  const menuBadge = document.getElementById('menuBadge');
   const NOTIFICATION_REFRESH_INTERVAL_MS = 30000; // 30 seconds
+  
+  // Store notifications data for modal display
+  var notificationsData = [];
 
-  function updateNotificationBadges(count){
-    // Update notification icon badge
+  function updateNotificationBadge(count){
+    // Update notification icon badge only
     if(notificationBadge){
       if(count > 0){
         notificationBadge.textContent = count > 99 ? '99+' : count;
         notificationBadge.hidden = false;
       } else {
         notificationBadge.hidden = true;
-      }
-    }
-    // Update menu/hamburger badge
-    if(menuBadge){
-      if(count > 0){
-        menuBadge.textContent = count > 99 ? '99+' : count;
-        menuBadge.hidden = false;
-      } else {
-        menuBadge.hidden = true;
       }
     }
   }
@@ -66,7 +59,8 @@ document.addEventListener('DOMContentLoaded', function () {
         return response.json();
       })
       .then(function(data){
-        updateNotificationBadges(data.count || 0);
+        updateNotificationBadge(data.count || 0);
+        notificationsData = data.notifications || [];
       })
       .catch(function(error){
         console.error('Error fetching notifications:', error);
@@ -74,7 +68,7 @@ document.addEventListener('DOMContentLoaded', function () {
   }
 
   // Initial fetch and set interval for auto-refresh
-  if(notificationBadge || menuBadge){
+  if(notificationBadge){
     fetchNotifications();
     setInterval(fetchNotifications, NOTIFICATION_REFRESH_INTERVAL_MS);
   }
@@ -83,9 +77,60 @@ document.addEventListener('DOMContentLoaded', function () {
   const notificationBtn = document.getElementById('notificationBtn');
   const bagAlertModal = document.getElementById('bagAlertModal');
   const closeBagAlert = document.getElementById('closeBagAlert');
+  const notificationList = document.getElementById('notificationList');
+
+  function renderNotifications(){
+    if(!notificationList) return;
+    notificationList.innerHTML = '';
+    
+    if(notificationsData.length === 0){
+      var emptyMsg = document.createElement('p');
+      emptyMsg.className = 'notification-empty';
+      emptyMsg.textContent = 'Aucune notification pour le moment.';
+      notificationList.appendChild(emptyMsg);
+      return;
+    }
+    
+    notificationsData.forEach(function(notif){
+      var item = document.createElement('div');
+      item.className = 'notification-item';
+      
+      var icon = document.createElement('span');
+      icon.className = 'notification-item-icon';
+      if(notif.type === 'admin_message'){
+        icon.textContent = '📩';
+      } else if(notif.type === 'pending_purchase'){
+        icon.textContent = '🛒';
+      } else {
+        icon.textContent = '🔔';
+      }
+      
+      var content = document.createElement('div');
+      content.className = 'notification-item-content';
+      
+      var message = document.createElement('p');
+      message.className = 'notification-item-message';
+      message.textContent = notif.message || 'Notification';
+      
+      content.appendChild(message);
+      
+      if(notif.timestamp){
+        var time = document.createElement('span');
+        time.className = 'notification-item-time';
+        var date = new Date(notif.timestamp * 1000);
+        time.textContent = date.toLocaleString('fr-FR');
+        content.appendChild(time);
+      }
+      
+      item.appendChild(icon);
+      item.appendChild(content);
+      notificationList.appendChild(item);
+    });
+  }
 
   function openBagAlertModal(){
     if(!bagAlertModal) return;
+    renderNotifications();
     bagAlertModal.classList.add('show');
     document.body.style.overflow = 'hidden';
   }

@@ -9,6 +9,7 @@ import auth
 import config
 from telebot import types 
 from limiteur import add_credits
+from web_notifications import add_web_notification
 
 bot_admin = telebot.TeleBot(config.TOKEN_BOT_ADMIN)
 bot_user = telebot.TeleBot(config.TOKEN_BOT_USER)
@@ -201,13 +202,15 @@ def process_admin_actions(call):
             add_credits(u_id, amount)
             bot_admin.edit_message_text(f"✅ Validé (+{amount}) pour {u_id}", call.message.chat.id, call.message.message_id)
             target_id = resolve_telegram_id(u_id)
-            send_telegram_message(
+            telegram_sent = send_telegram_message(
                 bot_user,
                 target_id,
                 f"🎉 **Achat validé !** +{amount} crédits ajoutés.",
                 log_context="purchase_approved",
                 parse_mode="Markdown"
             )
+            # Always send web notification for web users
+            add_web_notification(u_id, f"🎉 Achat validé ! +{amount} crédits ont été ajoutés à votre compte.", "admin_message")
             log_admin_action("approve_purchase", u_id, f"+{amount} crédits")
         
         elif action == "admin_off":
@@ -215,7 +218,7 @@ def process_admin_actions(call):
             markup.add(types.InlineKeyboardButton("💬 REJOINDRE LA DISCUSSION", url=url_link))
             bot_admin.edit_message_text(f"🚫 Info maintenance envoyée à {u_id}", call.message.chat.id, call.message.message_id)
             target_id = resolve_telegram_id(u_id)
-            send_telegram_message(
+            telegram_sent = send_telegram_message(
                 bot_user,
                 target_id,
                 msg_text,
@@ -223,17 +226,21 @@ def process_admin_actions(call):
                 reply_markup=markup,
                 parse_mode="Markdown"
             )
+            # Always send web notification for web users
+            add_web_notification(u_id, "🚨 Maintenance en cours. Le service est temporairement indisponible.", "admin_message")
             log_admin_action("send_maintenance", u_id, "Notification de maintenance")
         
         elif action == "admin_no":
             bot_admin.edit_message_text(f"❌ Refusé pour {u_id}", call.message.chat.id, call.message.message_id)
             target_id = resolve_telegram_id(u_id)
-            send_telegram_message(
+            telegram_sent = send_telegram_message(
                 bot_user,
                 target_id,
                 "❌ Votre demande d'achat a été refusée.",
                 log_context="purchase_rejected"
             )
+            # Always send web notification for web users
+            add_web_notification(u_id, "❌ Votre demande d'achat a été refusée.", "admin_message")
             log_admin_action("reject_purchase", u_id, "Achat refusé")
 
 # --- NOTIFICATIONS (INCHANGÉES) ---
