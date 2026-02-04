@@ -124,7 +124,54 @@ document.addEventListener('DOMContentLoaded', function () {
       
       item.appendChild(icon);
       item.appendChild(content);
+      
+      // Add delete button for deletable notifications
+      if(notif.deletable && notif.id != null){
+        var deleteBtn = document.createElement('button');
+        deleteBtn.className = 'notification-delete-btn';
+        deleteBtn.title = 'Supprimer';
+        deleteBtn.innerHTML = '🗑️';
+        deleteBtn.setAttribute('data-notif-id', notif.id);
+        deleteBtn.addEventListener('click', function(e){
+          e.stopPropagation();
+          deleteNotification(notif.id, item);
+        });
+        item.appendChild(deleteBtn);
+      }
+      
       notificationList.appendChild(item);
+    });
+  }
+
+  function deleteNotification(notifId, itemElement){
+    fetch('/api/notifications/' + notifId, {
+      method: 'DELETE'
+    })
+    .then(function(response){
+      if(response.ok){
+        // Check if this is the last item before removing
+        var isLastItem = notificationList && notificationList.children.length === 1;
+        // Remove from DOM with animation
+        itemElement.style.opacity = '0';
+        itemElement.style.transform = 'translateX(20px)';
+        setTimeout(function(){
+          itemElement.remove();
+          // Refresh notifications data
+          fetchNotifications();
+          // Show empty message if list is now empty
+          if(isLastItem && notificationList){
+            var emptyMsg = document.createElement('p');
+            emptyMsg.className = 'notification-empty';
+            emptyMsg.textContent = 'Aucune notification pour le moment.';
+            notificationList.appendChild(emptyMsg);
+          }
+        }, 200);
+      } else {
+        console.error('Failed to delete notification');
+      }
+    })
+    .catch(function(error){
+      console.error('Error deleting notification:', error);
     });
   }
 
