@@ -124,7 +124,50 @@ document.addEventListener('DOMContentLoaded', function () {
       
       item.appendChild(icon);
       item.appendChild(content);
+      
+      // Ajouter le bouton de suppression (poubelle) si la notification est supprimable
+      if(notif.deletable){
+        var deleteBtn = document.createElement('button');
+        deleteBtn.className = 'notification-delete-btn';
+        deleteBtn.setAttribute('aria-label', 'Supprimer la notification');
+        deleteBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>';
+        deleteBtn.addEventListener('click', function(e){
+          e.stopPropagation();
+          deleteNotification(notif.index, item);
+        });
+        item.appendChild(deleteBtn);
+      }
+      
       notificationList.appendChild(item);
+    });
+  }
+
+  function deleteNotification(index, itemElement){
+    fetch('/api/notifications/delete', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ index: index })
+    })
+    .then(function(response){
+      return response.json();
+    })
+    .then(function(data){
+      if(data.success){
+        // Animation de suppression
+        itemElement.classList.add('notification-item-removing');
+        setTimeout(function(){
+          itemElement.remove();
+          // Mettre à jour les données locales et le badge
+          fetchNotifications();
+        }, 300);
+      } else {
+        console.error('Erreur lors de la suppression:', data.error);
+      }
+    })
+    .catch(function(error){
+      console.error('Erreur réseau:', error);
     });
   }
 

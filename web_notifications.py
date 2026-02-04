@@ -48,3 +48,22 @@ def get_user_web_notifications(user_id):
     with web_notifications_lock:
         data = _load_web_notifications()
         return data.get(str(user_id), [])
+
+
+def delete_web_notification(user_id, index):
+    """Delete a specific notification by index for a user.
+    
+    Returns True if deleted successfully, False otherwise.
+    """
+    with web_notifications_lock:
+        data = _load_web_notifications()
+        user_id = str(user_id)
+        if user_id not in data:
+            return False
+        notifications = data[user_id]
+        if not isinstance(index, int) or index < 0 or index >= len(notifications):
+            return False
+        del notifications[index]
+        data[user_id] = notifications
+        _save_web_notifications(data)
+        return True
