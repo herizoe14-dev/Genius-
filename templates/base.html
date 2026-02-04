@@ -44,7 +44,6 @@
     <div class="left">
       <button id="openSidebar" class="icon-btn hamburger" aria-label="Ouvrir le menu">
         <span class="bar"></span><span class="bar"></span><span class="bar"></span>
-        <span id="menuBadge" class="notification-badge" hidden></span>
       </button>
       <div class="brand-mini">
         <span class="logo">Genius</span><span class="sub">Bot</span>
@@ -98,7 +97,7 @@
     <small>© Genius Bot • Intégration Web</small>
   </footer>
 
-  <!-- Bag Image Alert Modal -->
+  <!-- Notification Modal -->
   <div id="bagAlertModal" class="bag-alert-modal">
     <div class="bag-alert-content">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -106,8 +105,8 @@
         <line x1="3" y1="6" x2="21" y2="6"/>
         <path d="M16 10a4 4 0 0 1-8 0"/>
       </svg>
-      <h3>🛒 Notifications</h3>
-      <p>Consultez vos alertes et messages ici.</p>
+      <h3>🔔 Notifications</h3>
+      <div id="notificationList" class="notification-list"></div>
       <button class="bag-alert-close" id="closeBagAlert">Fermer</button>
     </div>
   </div>

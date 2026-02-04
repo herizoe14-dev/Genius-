@@ -19,6 +19,7 @@ import telebot
 import config
 import auth
 from admin import resolve_telegram_id, send_telegram_message
+from web_notifications import get_user_web_notifications
 
 # === Configuration Flask ===
 app = Flask(__name__, static_folder="static", template_folder="templates")
@@ -258,7 +259,6 @@ def get_notifications():
     
     user_id = session['user_id']
     notifications = []
-    count = 0
     
     # Lire les notifications des achats en attente pour cet utilisateur
     ensure_pending_log()
@@ -276,13 +276,27 @@ def get_notifications():
                                     "message": f"Achat de {entry.get('pack')} crédits en attente",
                                     "timestamp": entry.get("ts", 0)
                                 })
-                                count += 1
                         except json.JSONDecodeError:
                             continue
     except Exception:
         app.logger.exception("Erreur lors de la lecture des notifications depuis le fichier pending_purchases.log")
     
-    return {"count": count, "notifications": notifications}, 200
+    # Lire les notifications web (messages de l'admin)
+    try:
+        web_notifs = get_user_web_notifications(user_id)
+        for notif in web_notifs:
+            notifications.append({
+                "type": notif.get("type", "admin_message"),
+                "message": notif.get("message", ""),
+                "timestamp": notif.get("timestamp", 0)
+            })
+    except Exception:
+        app.logger.exception("Erreur lors de la lecture des notifications web")
+    
+    # Trier par timestamp (plus récent en premier)
+    notifications.sort(key=lambda x: x.get("timestamp", 0), reverse=True)
+    
+    return {"count": len(notifications), "notifications": notifications}, 200
 
 # === Téléchargement ===
 @app.route('/download', methods=['GET', 'POST'])
