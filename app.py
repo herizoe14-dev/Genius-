@@ -19,7 +19,7 @@ import telebot
 import config
 import auth
 from admin import resolve_telegram_id, send_telegram_message
-from web_notifications import get_user_web_notifications
+from web_notifications import get_user_web_notifications, delete_web_notification
 
 # === Configuration Flask ===
 app = Flask(__name__, static_folder="static", template_folder="templates")
@@ -274,7 +274,8 @@ def get_notifications():
                                 notifications.append({
                                     "type": "pending_purchase",
                                     "message": f"Achat de {entry.get('pack')} crédits en attente",
-                                    "timestamp": entry.get("ts", 0)
+                                    "timestamp": entry.get("ts", 0),
+                                    "deletable": False  # Les achats en attente ne peuvent pas être supprimés
                                 })
                         except json.JSONDecodeError:
                             continue
@@ -284,11 +285,13 @@ def get_notifications():
     # Lire les notifications web (messages de l'admin)
     try:
         web_notifs = get_user_web_notifications(user_id)
-        for notif in web_notifs:
+        for idx, notif in enumerate(web_notifs):
             notifications.append({
                 "type": notif.get("type", "admin_message"),
                 "message": notif.get("message", ""),
-                "timestamp": notif.get("timestamp", 0)
+                "timestamp": notif.get("timestamp", 0),
+                "deletable": True,  # Les notifications web peuvent être supprimées
+                "index": idx  # Index pour suppression
             })
     except Exception:
         app.logger.exception("Erreur lors de la lecture des notifications web")
@@ -297,6 +300,33 @@ def get_notifications():
     notifications.sort(key=lambda x: x.get("timestamp", 0), reverse=True)
     
     return {"count": len(notifications), "notifications": notifications}, 200
+
+
+@app.route('/api/notifications/delete', methods=['POST'])
+def delete_notification():
+    """API endpoint pour supprimer une notification."""
+    if 'user_id' not in session:
+        return {"success": False, "error": "Non authentifié"}, 401
+    
+    user_id = session['user_id']
+    
+    try:
+        data = request.get_json()
+        if not data or 'index' not in data:
+            return {"success": False, "error": "Index manquant"}, 400
+        
+        index = data['index']
+        if not isinstance(index, int) or index < 0:
+            return {"success": False, "error": "Index invalide"}, 400
+        
+        success = delete_web_notification(user_id, index)
+        if success:
+            return {"success": True}, 200
+        else:
+            return {"success": False, "error": "Notification non trouvée"}, 404
+    except Exception:
+        app.logger.exception("Erreur lors de la suppression de la notification")
+        return {"success": False, "error": "Erreur serveur"}, 500
 
 # === Téléchargement ===
 @app.route('/download', methods=['GET', 'POST'])

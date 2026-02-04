@@ -278,6 +278,38 @@ button.danger{ background:linear-gradient(90deg, #ff8a8a, #ff5b5b); color:white 
   margin:0;
 }
 
+/* Notification delete button (trash icon) */
+.notification-delete-btn{
+  background:transparent;
+  border:none;
+  color:var(--muted-text);
+  cursor:pointer;
+  padding:6px;
+  border-radius:6px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  flex-shrink:0;
+  transition: color 0.15s ease, background 0.15s ease, transform 0.15s ease;
+  box-shadow:none;
+}
+.notification-delete-btn:hover{
+  color:var(--danger);
+  background:rgba(255,107,107,0.1);
+  transform:scale(1.1);
+  box-shadow:none;
+}
+.notification-delete-btn svg{
+  display:block;
+}
+
+/* Animation de suppression */
+.notification-item-removing{
+  opacity:0;
+  transform:translateX(20px);
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
 /* Sidebar (Drawer) */
 .sidebar{
   position:fixed; top:0; left:0; bottom:0; width:280px; padding:18px; transform:translateX(-120%);
