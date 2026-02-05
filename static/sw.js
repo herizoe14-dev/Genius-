@@ -1,7 +1,7 @@
 // Service Worker for Genius Bot PWA
-const CACHE_NAME = 'genius-bot-v1';
-const STATIC_CACHE = 'genius-bot-static-v1';
-const DYNAMIC_CACHE = 'genius-bot-dynamic-v1';
+const CACHE_VERSION = 'v1';
+const STATIC_CACHE = 'genius-bot-static-' + CACHE_VERSION;
+const DYNAMIC_CACHE = 'genius-bot-dynamic-' + CACHE_VERSION;
 
 // Static assets to cache on install
 const STATIC_ASSETS = [
@@ -61,7 +61,7 @@ self.addEventListener('activate', (event) => {
       .then((cacheNames) => {
         return Promise.all(
           cacheNames.map((cacheName) => {
-            if (cacheName !== STATIC_CACHE && cacheName !== DYNAMIC_CACHE && cacheName !== CACHE_NAME) {
+            if (cacheName !== STATIC_CACHE && cacheName !== DYNAMIC_CACHE) {
               console.log('[Service Worker] Deleting old cache:', cacheName);
               return caches.delete(cacheName);
             }
@@ -174,7 +174,17 @@ async function staleWhileRevalidate(request) {
       return null;
     });
 
-  return cachedResponse || fetchPromise || new Response('Offline', { status: 503 });
+  // Wait for network response if no cache, otherwise return cache immediately
+  if (cachedResponse) {
+    return cachedResponse;
+  }
+  
+  const networkResult = await fetchPromise;
+  if (networkResult) {
+    return networkResult;
+  }
+  
+  return new Response('Offline', { status: 503, statusText: 'Service Unavailable' });
 }
 
 // Handle push notifications (for future use)
