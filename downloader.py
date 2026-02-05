@@ -48,22 +48,30 @@ def download_content(url, mode, quality=None, bot=None, chat_id=None, message_id
             }],
         })
     else:
-        # MP4 with quality selection - prioritize higher bitrate videos
+        # MP4 with quality selection - use flexible format with fallbacks
         if quality and quality != 'best' and quality.isdigit():
             height = int(quality)
-            # Format selection for specific quality:
-            # 1. Best H.264 video at height + AAC audio (most compatible)
-            # 2. Any best video at height + any best audio
-            # 3. Fallback to best combined format at height
+            # Format selection with multiple fallbacks to avoid "format not available" errors:
+            # 1. Best video at height with H.264 + best audio with AAC
+            # 2. Best video at height (any codec) + best audio (any codec)
+            # 3. Best combined format at height
+            # 4. Best video at any height + best audio (ultimate fallback)
+            # 5. Best available (final fallback)
             format_str = (
                 f'bestvideo[height<={height}][vcodec^=avc1]+bestaudio[acodec^=mp4a]/'
                 f'bestvideo[height<={height}]+bestaudio/'
-                f'best[height<={height}]'
+                f'best[height<={height}]/'
+                f'bestvideo+bestaudio/'
+                f'best'
             )
             format_sort = [f'res:{height}', 'vbr', 'tbr', 'ext:mp4:m4a']
         else:
-            # Best quality available
-            format_str = 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/bestvideo+bestaudio/best'
+            # Best quality available with multiple fallbacks
+            format_str = (
+                'bestvideo[ext=mp4]+bestaudio[ext=m4a]/'
+                'bestvideo+bestaudio/'
+                'best'
+            )
             format_sort = ['res', 'vbr', 'tbr', 'ext:mp4:m4a']
         
         ydl_opts.update({
