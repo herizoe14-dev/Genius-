@@ -24,26 +24,71 @@ def progress_hook(d, bot, chat_id, message_id):
         except: pass
 
 def download_content(url, mode, bot=None, chat_id=None, message_id=None):
+    """
+    Download content from YouTube using standard yt-dlp quality.
+    
+    Args:
+        url: YouTube URL
+        mode: 'mp3' or 'mp4'
+        bot, chat_id, message_id: For Telegram progress updates
+    
+    Returns:
+        tuple: (filename, info_dict) - filename and video info for display
+    """
     download_path = "downloads"
     if not os.path.exists(download_path): os.makedirs(download_path)
     ydl_opts = get_bypass_config()
+    
+    # Standard yt-dlp format selection (simple and reliable)
+    if mode == 'mp3':
+        ydl_opts.update({
+            'format': 'bestaudio/best',
+            'postprocessors': [{
+                'key': 'FFmpegExtractAudio',
+                'preferredcodec': 'mp3',
+                'preferredquality': '192',
+            }],
+        })
+    else:
+        # Standard best quality MP4
+        ydl_opts.update({
+            'format': 'best[ext=mp4]/best',
+        })
+    
     ydl_opts.update({
-        'format': 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best',
         'outtmpl': f'{download_path}/%(title)s.%(ext)s',
         'noplaylist': True, 'quiet': True, 'no_color': True,
     })
+    
     if bot and chat_id and message_id:
         ydl_opts['progress_hooks'] = [lambda d: progress_hook(d, bot, chat_id, message_id)]
 
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         info = ydl.extract_info(url, download=True)
         filename = ydl.prepare_filename(info)
+        
+        # Extract useful info for display
+        download_info = {
+            'title': info.get('title', 'Unknown'),
+            'duration': info.get('duration', 0),
+            'uploader': info.get('uploader', 'Unknown'),
+            'view_count': info.get('view_count', 0),
+            'resolution': info.get('resolution', 'N/A'),
+            'filesize': info.get('filesize') or info.get('filesize_approx', 0),
+        }
+        
         if mode == 'mp3':
+            # FFmpeg postprocessor changes extension to .mp3
             new_name = filename.rsplit('.', 1)[0] + '.mp3'
-            if os.path.exists(new_name): os.remove(new_name)
-            os.rename(filename, new_name)
-            return new_name
-        return filename
+            if os.path.exists(new_name):
+                return new_name, download_info
+            # Fallback: rename if not auto-converted
+            if os.path.exists(filename):
+                os.rename(filename, new_name)
+                return new_name, download_info
+            # If neither exists, raise an error
+            raise FileNotFoundError(f"Fichier audio non trouvé après conversion: {new_name}")
+        return filename, download_info
 
 def split_file(file_path, chunk_size=45 * 1024 * 1024):
     """Compresse en ZIP puis découpe en parties .zip.001, .zip.002..."""

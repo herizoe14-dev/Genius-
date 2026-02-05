@@ -19,7 +19,7 @@ import telebot
 import config
 import auth
 from admin import resolve_telegram_id, send_telegram_message
-from web_notifications import get_user_web_notifications
+from web_notifications import get_user_web_notifications, clear_user_web_notifications, delete_single_notification
 
 # === Configuration Flask ===
 app = Flask(__name__, static_folder="static", template_folder="templates")
@@ -125,8 +125,8 @@ def apply_security_headers(response):
     response.headers['X-Frame-Options'] = 'DENY'
     response.headers['Referrer-Policy'] = 'no-referrer-when-downgrade'
     response.headers['Permissions-Policy'] = 'geolocation=()'
-    # CSP minimal (adjust if you load external scripts/styles)
-    response.headers['Content-Security-Policy'] = "default-src 'self'; img-src 'self' data: https:; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'"
+    # CSP - Updated to support PWA Service Worker
+    response.headers['Content-Security-Policy'] = "default-src 'self'; img-src 'self' data: https:; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; worker-src 'self'; manifest-src 'self'"
     return response
 
 app.after_request(apply_security_headers)
@@ -250,6 +250,21 @@ def home():
 def about():
     return render_template("about.html")
 
+# === PWA Service Worker ===
+@app.route('/sw.js')
+def service_worker():
+    """Serve Service Worker from root for proper scope."""
+    response = make_response(send_file('static/sw.js', mimetype='application/javascript'))
+    response.headers['Cache-Control'] = 'no-cache'
+    response.headers['Service-Worker-Allowed'] = '/'
+    return response
+
+# === PWA Offline Page ===
+@app.route('/offline')
+def offline():
+    """Offline fallback page for PWA."""
+    return render_template("offline.html")
+
 # === Notifications API ===
 @app.route('/api/notifications')
 def get_notifications():
@@ -298,6 +313,70 @@ def get_notifications():
     
     return {"count": len(notifications), "notifications": notifications}, 200
 
+# === Clear Notifications API ===
+@app.route('/api/notifications/clear', methods=['POST'])
+def clear_notifications():
+    """API endpoint pour supprimer toutes les notifications."""
+    if 'user_id' not in session:
+        return {"success": False, "message": "Non authentifié"}, 401
+    
+    user_id = session['user_id']
+    
+    # Clear web notifications
+    clear_user_web_notifications(user_id)
+    
+    # Clear pending purchases for this user from the log
+    ensure_pending_log()
+    try:
+        with pending_lock:
+            remaining_lines = []
+            with open(PENDING_LOG, "r", encoding="utf-8") as f:
+                for line in f:
+                    line = line.strip()
+                    if line:
+                        try:
+                            entry = json.loads(line)
+                            if entry.get("user") != user_id:
+                                remaining_lines.append(line)
+                        except json.JSONDecodeError:
+                            remaining_lines.append(line)
+            
+            with open(PENDING_LOG, "w", encoding="utf-8") as f:
+                for line in remaining_lines:
+                    f.write(line + "\n")
+    except Exception:
+        app.logger.exception("Erreur lors de la suppression des notifications")
+        return {"success": False, "message": "Erreur serveur"}, 500
+    
+    return {"success": True, "message": "Notifications supprimées"}, 200
+
+# === Settings Page ===
+@app.route('/settings')
+def settings():
+    """User settings page."""
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+    
+    user_id = session['user_id']
+    user_info = get_user_data(user_id)
+    
+    return render_template("settings.html", user_id=user_id, user=user_info)
+
+# === Update Settings API ===
+@app.route('/api/settings/theme', methods=['POST'])
+def update_theme():
+    """API endpoint pour sauvegarder les préférences de thème."""
+    if 'user_id' not in session:
+        return {"success": False, "message": "Non authentifié"}, 401
+    
+    # Store theme preference in session (could be stored in user data later)
+    theme = request.json.get('theme', 'dark')
+    if theme not in ['dark', 'light', 'auto']:
+        return {"success": False, "message": "Thème invalide"}, 400
+    
+    session['theme'] = theme
+    return {"success": True, "message": "Thème mis à jour"}, 200
+
 # === Téléchargement ===
 @app.route('/download', methods=['GET', 'POST'])
 def download_page():
@@ -305,6 +384,7 @@ def download_page():
         return redirect(url_for('login'))
 
     msg = None
+    download_info = None
     if request.method == 'POST':
         user_id = session['user_id']
         url = request.form.get('url', '').strip()
@@ -321,7 +401,31 @@ def download_page():
                 msg = "🔒 Crédits insuffisants. Achetez-en dans la boutique."
             else:
                 try:
-                    file_path = download_content(url, mode)
+                    file_path, info = download_content(url, mode)
+                    
+                    # Format download info for display
+                    duration = info.get('duration', 0)
+                    duration_str = f"{duration // 60}:{duration % 60:02d}" if duration else "N/A"
+                    views = info.get('view_count', 0)
+                    views_str = f"{views:,}".replace(',', ' ') if views else "N/A"
+                    filesize = info.get('filesize', 0)
+                    if filesize:
+                        if filesize > 1024 * 1024:
+                            filesize_str = f"{filesize / (1024 * 1024):.1f} MB"
+                        else:
+                            filesize_str = f"{filesize / 1024:.1f} KB"
+                    else:
+                        filesize_str = None
+                    
+                    download_info = {
+                        'title': info.get('title', 'Unknown'),
+                        'uploader': info.get('uploader', 'Unknown'),
+                        'duration_str': duration_str,
+                        'views_str': views_str,
+                        'resolution': info.get('resolution', None),
+                        'filesize_str': filesize_str,
+                    }
+                    
                     # send_file will stream the file to client
                     response = make_response(send_file(file_path, as_attachment=True))
                     # cleanup local file after sending (attempt)
@@ -345,7 +449,7 @@ def download_page():
                     except Exception:
                         app.logger.exception("Erreur rollback crédit")
                     msg = f"Erreur téléchargement : {e}"
-    return render_template("download.html", msg=msg)
+    return render_template("download.html", msg=msg, download_info=download_info)
 
 # === Boutique web ===
 @app.route('/shop', methods=['GET', 'POST'])

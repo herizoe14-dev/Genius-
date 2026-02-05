@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="card" style="text-align: center;">
+  <div class="offline-icon" style="font-size: 5rem; margin-bottom: 24px;">📡</div>
+  <h2>Vous êtes hors ligne</h2>
+  <p class="muted" style="margin-bottom: 24px;">
+    Impossible de se connecter au serveur. Vérifiez votre connexion internet et réessayez.
+  </p>
+  <div class="actions" style="justify-content: center;">
+    <button onclick="window.location.reload()" class="btn">
+      🔄 Réessayer
+    </button>
+  </div>
+  <p class="muted" style="margin-top: 24px; font-size: 0.9rem;">
+    Certaines fonctionnalités peuvent être disponibles hors ligne grâce au cache de l'application.
+  </p>
+</div>
+{% endblock %}
