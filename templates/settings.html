@@ -1,0 +1,192 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="card">
+  <h2>⚙️ Paramètres</h2>
+  <p class="muted">Personnalisez votre expérience sur Genius Bot.</p>
+  
+  <div class="settings-section">
+    <h3>👤 Informations du compte</h3>
+    <div class="settings-info-grid">
+      <div class="settings-info-item">
+        <span class="settings-info-label">Pseudonyme</span>
+        <span class="settings-info-value">{{ user_id }}</span>
+      </div>
+      <div class="settings-info-item">
+        <span class="settings-info-label">Crédits disponibles</span>
+        <span class="settings-info-value accent">{{ user.credits }}</span>
+      </div>
+      <div class="settings-info-item">
+        <span class="settings-info-label">Date d'expiration</span>
+        <span class="settings-info-value">{{ user.expiration }}</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="settings-section">
+    <h3>🔔 Notifications</h3>
+    <p class="muted">Gérez vos notifications et alertes.</p>
+    <div class="settings-actions">
+      <button id="clearNotificationsBtn" class="btn btn-secondary">
+        🗑️ Supprimer toutes les notifications
+      </button>
+    </div>
+    <div id="notificationFeedback" class="settings-feedback" hidden></div>
+  </div>
+
+  <div class="settings-section">
+    <h3>🎨 Apparence</h3>
+    <p class="muted">Choisissez votre thème préféré.</p>
+    <div class="theme-options">
+      <label class="theme-option" data-theme="dark">
+        <input type="radio" name="theme" value="dark" checked>
+        <span class="theme-preview dark-preview">
+          <span class="theme-icon">🌙</span>
+        </span>
+        <span class="theme-label">Sombre</span>
+      </label>
+      <label class="theme-option" data-theme="light">
+        <input type="radio" name="theme" value="light">
+        <span class="theme-preview light-preview">
+          <span class="theme-icon">☀️</span>
+        </span>
+        <span class="theme-label">Clair</span>
+      </label>
+      <label class="theme-option" data-theme="auto">
+        <input type="radio" name="theme" value="auto">
+        <span class="theme-preview auto-preview">
+          <span class="theme-icon">🌓</span>
+        </span>
+        <span class="theme-label">Auto</span>
+      </label>
+    </div>
+  </div>
+
+  <div class="settings-section">
+    <h3>📱 Application mobile</h3>
+    <p class="muted">Installez Genius Bot sur votre appareil pour un accès rapide.</p>
+    <div class="settings-actions">
+      <button id="installPwaBtn" class="btn">
+        📲 Installer l'application
+      </button>
+    </div>
+    <p class="settings-hint">L'installation ajoute Genius Bot à votre écran d'accueil pour un accès instantané.</p>
+  </div>
+
+  <div class="settings-section">
+    <h3>🔒 Sécurité</h3>
+    <p class="muted">Options de sécurité de votre compte.</p>
+    <div class="settings-actions">
+      <a href="{{ url_for('logout') }}" class="btn danger">
+        🚪 Se déconnecter
+      </a>
+    </div>
+  </div>
+
+  <div class="settings-section">
+    <h3>💡 Raccourcis utiles</h3>
+    <div class="shortcuts-grid">
+      <a href="{{ url_for('download_page') }}" class="shortcut-item">
+        <span class="shortcut-icon">📥</span>
+        <span class="shortcut-label">Télécharger</span>
+      </a>
+      <a href="{{ url_for('shop') }}" class="shortcut-item">
+        <span class="shortcut-icon">🛒</span>
+        <span class="shortcut-label">Boutique</span>
+      </a>
+      <a href="{{ url_for('home') }}" class="shortcut-item">
+        <span class="shortcut-icon">🏠</span>
+        <span class="shortcut-label">Dashboard</span>
+      </a>
+      <a href="{{ url_for('about') }}" class="shortcut-item">
+        <span class="shortcut-icon">📖</span>
+        <span class="shortcut-label">À propos</span>
+      </a>
+    </div>
+  </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  // Clear notifications button
+  var clearBtn = document.getElementById('clearNotificationsBtn');
+  var feedback = document.getElementById('notificationFeedback');
+  
+  if (clearBtn) {
+    clearBtn.addEventListener('click', function() {
+      clearBtn.disabled = true;
+      clearBtn.textContent = '⏳ Suppression...';
+      
+      fetch('/api/notifications/clear', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      })
+      .then(function(response) { return response.json(); })
+      .then(function(data) {
+        if (data.success) {
+          feedback.textContent = '✅ Toutes les notifications ont été supprimées !';
+          feedback.className = 'settings-feedback success';
+        } else {
+          feedback.textContent = '❌ ' + (data.message || 'Erreur');
+          feedback.className = 'settings-feedback error';
+        }
+        feedback.hidden = false;
+        clearBtn.disabled = false;
+        clearBtn.textContent = '🗑️ Supprimer toutes les notifications';
+      })
+      .catch(function() {
+        feedback.textContent = '❌ Erreur de connexion';
+        feedback.className = 'settings-feedback error';
+        feedback.hidden = false;
+        clearBtn.disabled = false;
+        clearBtn.textContent = '🗑️ Supprimer toutes les notifications';
+      });
+    });
+  }
+  
+  // Install PWA button
+  var installBtn = document.getElementById('installPwaBtn');
+  var deferredPrompt = null;
+  
+  window.addEventListener('beforeinstallprompt', function(e) {
+    e.preventDefault();
+    deferredPrompt = e;
+    if (installBtn) {
+      installBtn.style.display = 'inline-block';
+    }
+  });
+  
+  if (installBtn) {
+    installBtn.addEventListener('click', function() {
+      if (deferredPrompt) {
+        deferredPrompt.prompt();
+        deferredPrompt.userChoice.then(function(choice) {
+          if (choice.outcome === 'accepted') {
+            installBtn.textContent = '✅ Application installée !';
+            installBtn.disabled = true;
+          }
+          deferredPrompt = null;
+        });
+      } else {
+        // App might already be installed or not available
+        installBtn.textContent = '✅ Application déjà installée';
+        installBtn.disabled = true;
+      }
+    });
+  }
+  
+  // Theme selection (visual only for now)
+  var themeOptions = document.querySelectorAll('.theme-option');
+  themeOptions.forEach(function(option) {
+    option.addEventListener('click', function() {
+      themeOptions.forEach(function(o) { o.classList.remove('selected'); });
+      option.classList.add('selected');
+      option.querySelector('input').checked = true;
+    });
+  });
+  
+  // Set initial selected theme
+  var darkOption = document.querySelector('.theme-option[data-theme="dark"]');
+  if (darkOption) darkOption.classList.add('selected');
+});
+</script>
+{% endblock %}

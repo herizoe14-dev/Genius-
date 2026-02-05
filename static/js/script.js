@@ -227,6 +227,34 @@ document.addEventListener('DOMContentLoaded', function () {
     if(e.target === bagAlertModal) closeBagAlertModal();
   });
 
+  // Clear all notifications button in modal
+  var clearAllNotifsBtn = document.getElementById('clearAllNotifs');
+  if(clearAllNotifsBtn){
+    clearAllNotifsBtn.addEventListener('click', function(){
+      clearAllNotifsBtn.disabled = true;
+      clearAllNotifsBtn.textContent = '⏳';
+      
+      fetch('/api/notifications/clear', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      })
+      .then(function(response){ return response.json(); })
+      .then(function(data){
+        if(data.success){
+          notificationsData = [];
+          renderNotifications();
+          updateNotificationBadge(0);
+        }
+        clearAllNotifsBtn.disabled = false;
+        clearAllNotifsBtn.textContent = '🗑️';
+      })
+      .catch(function(){
+        clearAllNotifsBtn.disabled = false;
+        clearAllNotifsBtn.textContent = '🗑️';
+      });
+    });
+  }
+
   // Close bag alert with Escape key
   document.addEventListener('keydown', function(e){
     if(e.key === 'Escape' && bagAlertModal && bagAlertModal.classList.contains('show')){

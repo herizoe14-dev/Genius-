@@ -48,3 +48,29 @@ def get_user_web_notifications(user_id):
     with web_notifications_lock:
         data = _load_web_notifications()
         return data.get(str(user_id), [])
+
+
+def clear_user_web_notifications(user_id):
+    """Clear all notifications for a specific user."""
+    with web_notifications_lock:
+        data = _load_web_notifications()
+        user_id = str(user_id)
+        if user_id in data:
+            data[user_id] = []
+            _save_web_notifications(data)
+            return True
+        return False
+
+
+def delete_single_notification(user_id, timestamp):
+    """Delete a single notification by timestamp."""
+    with web_notifications_lock:
+        data = _load_web_notifications()
+        user_id = str(user_id)
+        if user_id in data:
+            original_len = len(data[user_id])
+            data[user_id] = [n for n in data[user_id] if n.get("timestamp") != timestamp]
+            if len(data[user_id]) < original_len:
+                _save_web_notifications(data)
+                return True
+        return False

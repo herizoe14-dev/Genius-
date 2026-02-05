@@ -61,6 +61,7 @@
         <a href="{{ url_for('home') }}" class="side-link">🏠 Dashboard</a>
         <a href="{{ url_for('download_page') }}" class="side-link">📥 Télécharger</a>
         <a href="{{ url_for('shop') }}" class="side-link">🛒 Boutique</a>
+        <a href="{{ url_for('settings') }}" class="side-link">⚙️ Paramètres</a>
         <a href="{{ url_for('about') }}" class="side-link">📖 À propos</a>
         <a href="{{ url_for('logout') }}" class="side-link logout">🚪 Se déconnecter</a>
       {% else %}
@@ -95,6 +96,7 @@
         <a class="top-link" href="{{ url_for('home') }}">🏠 Dashboard</a>
         <a class="top-link" href="{{ url_for('download_page') }}">📥 Télécharger</a>
         <a class="top-link" href="{{ url_for('shop') }}">🛒 Boutique</a>
+        <a class="top-link" href="{{ url_for('settings') }}">⚙️ Paramètres</a>
         <a class="top-link" href="{{ url_for('about') }}">📖 À propos</a>
         <a class="top-link" href="{{ url_for('logout') }}">🚪 Déconnexion</a>
       {% else %}
@@ -144,7 +146,10 @@
       </svg>
       <h3>🔔 Notifications</h3>
       <div id="notificationList" class="notification-list"></div>
-      <button class="bag-alert-close" id="closeBagAlert">Fermer</button>
+      <div class="notification-modal-actions">
+        <button class="btn-clear-notifs" id="clearAllNotifs" title="Supprimer toutes les notifications">🗑️</button>
+        <button class="bag-alert-close" id="closeBagAlert">Fermer</button>
+      </div>
     </div>
   </div>
 

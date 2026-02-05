@@ -19,7 +19,7 @@ import telebot
 import config
 import auth
 from admin import resolve_telegram_id, send_telegram_message
-from web_notifications import get_user_web_notifications
+from web_notifications import get_user_web_notifications, clear_user_web_notifications, delete_single_notification
 
 # === Configuration Flask ===
 app = Flask(__name__, static_folder="static", template_folder="templates")
@@ -312,6 +312,70 @@ def get_notifications():
     notifications.sort(key=lambda x: x.get("timestamp", 0), reverse=True)
     
     return {"count": len(notifications), "notifications": notifications}, 200
+
+# === Clear Notifications API ===
+@app.route('/api/notifications/clear', methods=['POST'])
+def clear_notifications():
+    """API endpoint pour supprimer toutes les notifications."""
+    if 'user_id' not in session:
+        return {"success": False, "message": "Non authentifié"}, 401
+    
+    user_id = session['user_id']
+    
+    # Clear web notifications
+    clear_user_web_notifications(user_id)
+    
+    # Clear pending purchases for this user from the log
+    ensure_pending_log()
+    try:
+        with pending_lock:
+            remaining_lines = []
+            with open(PENDING_LOG, "r", encoding="utf-8") as f:
+                for line in f:
+                    line = line.strip()
+                    if line:
+                        try:
+                            entry = json.loads(line)
+                            if entry.get("user") != user_id:
+                                remaining_lines.append(line)
+                        except json.JSONDecodeError:
+                            remaining_lines.append(line)
+            
+            with open(PENDING_LOG, "w", encoding="utf-8") as f:
+                for line in remaining_lines:
+                    f.write(line + "\n")
+    except Exception:
+        app.logger.exception("Erreur lors de la suppression des notifications")
+        return {"success": False, "message": "Erreur serveur"}, 500
+    
+    return {"success": True, "message": "Notifications supprimées"}, 200
+
+# === Settings Page ===
+@app.route('/settings')
+def settings():
+    """User settings page."""
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+    
+    user_id = session['user_id']
+    user_info = get_user_data(user_id)
+    
+    return render_template("settings.html", user_id=user_id, user=user_info)
+
+# === Update Settings API ===
+@app.route('/api/settings/theme', methods=['POST'])
+def update_theme():
+    """API endpoint pour sauvegarder les préférences de thème."""
+    if 'user_id' not in session:
+        return {"success": False, "message": "Non authentifié"}, 401
+    
+    # Store theme preference in session (could be stored in user data later)
+    theme = request.json.get('theme', 'dark')
+    if theme not in ['dark', 'light', 'auto']:
+        return {"success": False, "message": "Thème invalide"}, 400
+    
+    session['theme'] = theme
+    return {"success": True, "message": "Thème mis à jour"}, 200
 
 # === Téléchargement ===
 @app.route('/download', methods=['GET', 'POST'])
