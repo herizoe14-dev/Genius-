@@ -1018,6 +1018,55 @@ a.feature-item{
   line-height:1.6;
 }
 
+/* Download Info Card */
+.download-info-card{
+  background: rgba(0,209,122,0.08);
+  border:1px solid rgba(0,209,122,0.2);
+  border-radius:var(--radius);
+  padding:24px;
+  margin-top:24px;
+}
+.download-info-card h3{
+  color:var(--accent);
+  margin-bottom:16px;
+  font-size:1.1rem;
+}
+.download-info-grid{
+  display:grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap:16px;
+}
+.download-info-item{
+  background: rgba(0,0,0,0.2);
+  border-radius:var(--radius-sm);
+  padding:12px;
+}
+.download-info-label{
+  display:block;
+  font-size:0.75rem;
+  color:var(--muted-text);
+  margin-bottom:4px;
+}
+.download-info-value{
+  display:block;
+  font-size:0.95rem;
+  color:var(--text);
+  font-weight:600;
+  word-break:break-word;
+}
+.download-success{
+  text-align:center;
+  color:var(--accent);
+  margin-top:16px;
+  font-weight:600;
+}
+
+@media (max-width:599px){
+  .download-info-grid{
+    grid-template-columns: 1fr;
+  }
+}
+
 /* Actions Footer */
 .actions-footer{
   display:flex;

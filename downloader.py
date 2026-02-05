@@ -23,24 +23,26 @@ def progress_hook(d, bot, chat_id, message_id):
             bot.edit_message_text(msg, chat_id, message_id, parse_mode="Markdown")
         except: pass
 
-def download_content(url, mode, quality=None, bot=None, chat_id=None, message_id=None):
+def download_content(url, mode, bot=None, chat_id=None, message_id=None):
     """
-    Download content from YouTube.
+    Download content from YouTube using standard yt-dlp quality.
     
     Args:
         url: YouTube URL
         mode: 'mp3' or 'mp4'
-        quality: Video quality for mp4 ('240', '360', '480', '720', 'best')
         bot, chat_id, message_id: For Telegram progress updates
+    
+    Returns:
+        tuple: (filename, info_dict) - filename and video info for display
     """
     download_path = "downloads"
     if not os.path.exists(download_path): os.makedirs(download_path)
     ydl_opts = get_bypass_config()
     
-    # Set format based on mode and quality
+    # Standard yt-dlp format selection (simple and reliable)
     if mode == 'mp3':
         ydl_opts.update({
-            'format': 'bestaudio[ext=m4a]/bestaudio/best',
+            'format': 'bestaudio/best',
             'postprocessors': [{
                 'key': 'FFmpegExtractAudio',
                 'preferredcodec': 'mp3',
@@ -48,46 +50,14 @@ def download_content(url, mode, quality=None, bot=None, chat_id=None, message_id
             }],
         })
     else:
-        # MP4 with quality selection - use flexible format with fallbacks
-        if quality and quality != 'best' and quality.isdigit():
-            height = int(quality)
-            # Format selection with multiple fallbacks to avoid "format not available" errors:
-            # 1. Best video at height with H.264 + best audio with AAC
-            # 2. Best video at height (any codec) + best audio (any codec)
-            # 3. Best combined format at height
-            # 4. Best video at any height + best audio (ultimate fallback)
-            # 5. Best available (final fallback)
-            format_str = (
-                f'bestvideo[height<={height}][vcodec^=avc1]+bestaudio[acodec^=mp4a]/'
-                f'bestvideo[height<={height}]+bestaudio/'
-                f'best[height<={height}]/'
-                f'bestvideo+bestaudio/'
-                f'best'
-            )
-            format_sort = [f'res:{height}', 'vbr', 'tbr', 'ext:mp4:m4a']
-        else:
-            # Best quality available with multiple fallbacks
-            format_str = (
-                'bestvideo[ext=mp4]+bestaudio[ext=m4a]/'
-                'bestvideo+bestaudio/'
-                'best'
-            )
-            format_sort = ['res', 'vbr', 'tbr', 'ext:mp4:m4a']
-        
+        # Standard best quality MP4
         ydl_opts.update({
-            'format': format_str,
-            'format_sort': format_sort,
+            'format': 'best[ext=mp4]/best',
         })
     
     ydl_opts.update({
         'outtmpl': f'{download_path}/%(title)s.%(ext)s',
         'noplaylist': True, 'quiet': True, 'no_color': True,
-        'merge_output_format': 'mp4' if mode == 'mp4' else None,
-        # Don't prefer free formats - they may have lower quality
-        'prefer_free_formats': False,
-        # Ensure we get the actual video, not a preview/compressed version
-        'youtube_include_dash_manifest': True,
-        'youtube_include_hls_manifest': True,
     })
     
     if bot and chat_id and message_id:
@@ -97,18 +67,28 @@ def download_content(url, mode, quality=None, bot=None, chat_id=None, message_id
         info = ydl.extract_info(url, download=True)
         filename = ydl.prepare_filename(info)
         
+        # Extract useful info for display
+        download_info = {
+            'title': info.get('title', 'Unknown'),
+            'duration': info.get('duration', 0),
+            'uploader': info.get('uploader', 'Unknown'),
+            'view_count': info.get('view_count', 0),
+            'resolution': info.get('resolution', 'N/A'),
+            'filesize': info.get('filesize') or info.get('filesize_approx', 0),
+        }
+        
         if mode == 'mp3':
             # FFmpeg postprocessor changes extension to .mp3
             new_name = filename.rsplit('.', 1)[0] + '.mp3'
             if os.path.exists(new_name):
-                return new_name
+                return new_name, download_info
             # Fallback: rename if not auto-converted
             if os.path.exists(filename):
                 os.rename(filename, new_name)
-                return new_name
+                return new_name, download_info
             # If neither exists, raise an error
             raise FileNotFoundError(f"Fichier audio non trouvé après conversion: {new_name}")
-        return filename
+        return filename, download_info
 
 def split_file(file_path, chunk_size=45 * 1024 * 1024):
     """Compresse en ZIP puis découpe en parties .zip.001, .zip.002..."""

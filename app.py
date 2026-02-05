@@ -384,11 +384,11 @@ def download_page():
         return redirect(url_for('login'))
 
     msg = None
+    download_info = None
     if request.method == 'POST':
         user_id = session['user_id']
         url = request.form.get('url', '').strip()
         mode = request.form.get('mode', 'mp3')
-        quality = request.form.get('quality', '720')
         
         # SÉCURITÉ : Validation de l'URL
         url = sanitize_url(url)
@@ -396,16 +396,36 @@ def download_page():
             msg = "URL YouTube invalide ou manquante"
         elif mode not in ['mp3', 'mp4']:
             msg = "Mode de téléchargement invalide"
-        elif mode == 'mp4' and quality not in ['240', '360', '480', '720']:
-            msg = "Qualité vidéo invalide"
         else:
             if not spend_credit(user_id):
                 msg = "🔒 Crédits insuffisants. Achetez-en dans la boutique."
             else:
                 try:
-                    # Pass quality only for MP4
-                    video_quality = quality if mode == 'mp4' else None
-                    file_path = download_content(url, mode, quality=video_quality)
+                    file_path, info = download_content(url, mode)
+                    
+                    # Format download info for display
+                    duration = info.get('duration', 0)
+                    duration_str = f"{duration // 60}:{duration % 60:02d}" if duration else "N/A"
+                    views = info.get('view_count', 0)
+                    views_str = f"{views:,}".replace(',', ' ') if views else "N/A"
+                    filesize = info.get('filesize', 0)
+                    if filesize:
+                        if filesize > 1024 * 1024:
+                            filesize_str = f"{filesize / (1024 * 1024):.1f} MB"
+                        else:
+                            filesize_str = f"{filesize / 1024:.1f} KB"
+                    else:
+                        filesize_str = None
+                    
+                    download_info = {
+                        'title': info.get('title', 'Unknown'),
+                        'uploader': info.get('uploader', 'Unknown'),
+                        'duration_str': duration_str,
+                        'views_str': views_str,
+                        'resolution': info.get('resolution', None),
+                        'filesize_str': filesize_str,
+                    }
+                    
                     # send_file will stream the file to client
                     response = make_response(send_file(file_path, as_attachment=True))
                     # cleanup local file after sending (attempt)
@@ -429,7 +449,7 @@ def download_page():
                     except Exception:
                         app.logger.exception("Erreur rollback crédit")
                     msg = f"Erreur téléchargement : {e}"
-    return render_template("download.html", msg=msg)
+    return render_template("download.html", msg=msg, download_info=download_info)
 
 # === Boutique web ===
 @app.route('/shop', methods=['GET', 'POST'])
