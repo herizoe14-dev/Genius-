@@ -22,8 +22,9 @@ def get_bypass_config():
         },
         'nocheckcertificate': True,
         'geo_bypass': True,
-        # FORCE LE CLIENT ANDROID (Moins de blocage que le Web)
-        'extractor_args': {'youtube': {'player_client': ['android', 'ios']}},
+        # Use web client to get higher quality uncompressed streams
+        # Android/iOS clients return compressed lower bitrate streams
+        'extractor_args': {'youtube': {'player_client': ['web', 'android']}},
         # GESTION DES TIMEOUTS (Évite que Termux ne bloque)
         'socket_timeout': 60,
         'retries': 10,

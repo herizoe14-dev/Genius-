@@ -48,24 +48,38 @@ def download_content(url, mode, quality=None, bot=None, chat_id=None, message_id
             }],
         })
     else:
-        # MP4 with quality selection - use format_sort to prioritize resolution
+        # MP4 with quality selection - prioritize higher bitrate videos
         if quality and quality != 'best' and quality.isdigit():
             height = int(quality)
-            # Use format_sort to prioritize the requested resolution
-            # This ensures we get the closest match to the requested quality
-            ydl_opts.update({
-                'format': f'bestvideo[height<={height}]+bestaudio/best[height<={height}]',
-                'format_sort': [f'res:{height}', 'ext:mp4:m4a'],
-            })
+            # Format selection for specific quality:
+            # 1. Best H.264 video at height + AAC audio (most compatible)
+            # 2. Any best video at height + any best audio
+            # 3. Fallback to best combined format at height
+            format_str = (
+                f'bestvideo[height<={height}][vcodec^=avc1]+bestaudio[acodec^=mp4a]/'
+                f'bestvideo[height<={height}]+bestaudio/'
+                f'best[height<={height}]'
+            )
+            format_sort = [f'res:{height}', 'vbr', 'tbr', 'ext:mp4:m4a']
         else:
-            ydl_opts.update({
-                'format': 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best',
-            })
+            # Best quality available
+            format_str = 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/bestvideo+bestaudio/best'
+            format_sort = ['res', 'vbr', 'tbr', 'ext:mp4:m4a']
+        
+        ydl_opts.update({
+            'format': format_str,
+            'format_sort': format_sort,
+        })
     
     ydl_opts.update({
         'outtmpl': f'{download_path}/%(title)s.%(ext)s',
         'noplaylist': True, 'quiet': True, 'no_color': True,
         'merge_output_format': 'mp4' if mode == 'mp4' else None,
+        # Don't prefer free formats - they may have lower quality
+        'prefer_free_formats': False,
+        # Ensure we get the actual video, not a preview/compressed version
+        'youtube_include_dash_manifest': True,
+        'youtube_include_hls_manifest': True,
     })
     
     if bot and chat_id and message_id:
