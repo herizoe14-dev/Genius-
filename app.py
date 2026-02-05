@@ -125,8 +125,8 @@ def apply_security_headers(response):
     response.headers['X-Frame-Options'] = 'DENY'
     response.headers['Referrer-Policy'] = 'no-referrer-when-downgrade'
     response.headers['Permissions-Policy'] = 'geolocation=()'
-    # CSP minimal (adjust if you load external scripts/styles)
-    response.headers['Content-Security-Policy'] = "default-src 'self'; img-src 'self' data: https:; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'"
+    # CSP - Updated to support PWA Service Worker
+    response.headers['Content-Security-Policy'] = "default-src 'self'; img-src 'self' data: https:; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; worker-src 'self'; manifest-src 'self'"
     return response
 
 app.after_request(apply_security_headers)
@@ -249,6 +249,21 @@ def home():
 @app.route('/about')
 def about():
     return render_template("about.html")
+
+# === PWA Service Worker ===
+@app.route('/sw.js')
+def service_worker():
+    """Serve Service Worker from root for proper scope."""
+    response = make_response(send_file('static/sw.js', mimetype='application/javascript'))
+    response.headers['Cache-Control'] = 'no-cache'
+    response.headers['Service-Worker-Allowed'] = '/'
+    return response
+
+# === PWA Offline Page ===
+@app.route('/offline')
+def offline():
+    """Offline fallback page for PWA."""
+    return render_template("offline.html")
 
 # === Notifications API ===
 @app.route('/api/notifications')

@@ -1,4 +1,84 @@
 document.addEventListener('DOMContentLoaded', function () {
+  // === Service Worker Registration for PWA ===
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', function() {
+      navigator.serviceWorker.register('/sw.js', { scope: '/' })
+        .then(function(registration) {
+          console.log('[PWA] Service Worker registered successfully:', registration.scope);
+          
+          // Check for updates
+          registration.addEventListener('updatefound', function() {
+            const newWorker = registration.installing;
+            console.log('[PWA] Service Worker update found');
+            
+            newWorker.addEventListener('statechange', function() {
+              if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                console.log('[PWA] New content available, please refresh');
+              }
+            });
+          });
+        })
+        .catch(function(error) {
+          console.error('[PWA] Service Worker registration failed:', error);
+        });
+    });
+  }
+
+  // === PWA Install Prompt ===
+  let deferredPrompt;
+  const installBanner = document.getElementById('pwaInstallBanner');
+  const installBtn = document.getElementById('pwaInstallBtn');
+  const dismissBtn = document.getElementById('pwaInstallDismiss');
+
+  window.addEventListener('beforeinstallprompt', function(e) {
+    console.log('[PWA] beforeinstallprompt fired');
+    e.preventDefault();
+    deferredPrompt = e;
+    
+    // Show install banner if available
+    if (installBanner) {
+      installBanner.hidden = false;
+      installBanner.classList.add('show');
+    }
+  });
+
+  if (installBtn) {
+    installBtn.addEventListener('click', function() {
+      if (!deferredPrompt) return;
+      
+      deferredPrompt.prompt();
+      deferredPrompt.userChoice.then(function(choiceResult) {
+        console.log('[PWA] User choice:', choiceResult.outcome);
+        if (choiceResult.outcome === 'accepted') {
+          console.log('[PWA] User accepted the install prompt');
+        }
+        deferredPrompt = null;
+        if (installBanner) {
+          installBanner.hidden = true;
+          installBanner.classList.remove('show');
+        }
+      });
+    });
+  }
+
+  if (dismissBtn) {
+    dismissBtn.addEventListener('click', function() {
+      if (installBanner) {
+        installBanner.hidden = true;
+        installBanner.classList.remove('show');
+      }
+    });
+  }
+
+  window.addEventListener('appinstalled', function() {
+    console.log('[PWA] App was installed');
+    deferredPrompt = null;
+    if (installBanner) {
+      installBanner.hidden = true;
+      installBanner.classList.remove('show');
+    }
+  });
+
   const openBtn = document.getElementById('openSidebar');
   const closeBtn = document.getElementById('closeSidebar');
   const sidebar = document.getElementById('sidebar');

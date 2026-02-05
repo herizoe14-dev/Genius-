@@ -1136,3 +1136,97 @@ a.feature-item{
   visibility:visible;
   transform:translateX(-50%) translateY(-4px);
 }
+
+/* ===== PWA INSTALL BANNER ===== */
+.pwa-install-banner{
+  position:fixed;
+  bottom:0;
+  left:0;
+  right:0;
+  background: linear-gradient(135deg, rgba(10,31,26,0.98), rgba(7,26,21,0.98));
+  border-top:1px solid rgba(0,209,122,0.2);
+  padding:16px 20px;
+  z-index:150;
+  transform:translateY(100%);
+  transition: transform var(--transition-medium);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  box-shadow: 0 -10px 40px rgba(0,0,0,0.5);
+}
+.pwa-install-banner.show{
+  transform:translateY(0);
+}
+.pwa-install-content{
+  display:flex;
+  align-items:center;
+  gap:16px;
+  max-width:1000px;
+  margin:0 auto;
+}
+.pwa-install-icon{
+  font-size:2rem;
+  flex-shrink:0;
+}
+.pwa-install-text{
+  flex:1;
+  min-width:0;
+}
+.pwa-install-text strong{
+  display:block;
+  color:var(--text);
+  font-size:1rem;
+  margin-bottom:2px;
+}
+.pwa-install-text small{
+  color:var(--muted-text);
+  font-size:0.85rem;
+}
+.pwa-install-btn{
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  color:#002b20;
+  border:none;
+  padding:10px 20px;
+  border-radius:var(--radius-sm);
+  font-weight:700;
+  font-size:0.9rem;
+  cursor:pointer;
+  white-space:nowrap;
+  transition: all var(--transition-fast);
+}
+.pwa-install-btn:hover{
+  transform:translateY(-2px);
+  box-shadow: 0 8px 25px rgba(0,209,122,0.3);
+}
+.pwa-install-dismiss{
+  background:transparent;
+  border:none;
+  color:var(--muted-text);
+  font-size:1.2rem;
+  padding:8px;
+  cursor:pointer;
+  transition: color var(--transition-fast);
+  box-shadow:none;
+}
+.pwa-install-dismiss:hover{
+  color:var(--text);
+  box-shadow:none;
+  transform:none;
+}
+
+@media (max-width:599px){
+  .pwa-install-content{
+    flex-wrap:wrap;
+  }
+  .pwa-install-text{
+    flex: 1 1 calc(100% - 60px);
+  }
+  .pwa-install-btn{
+    flex: 1 1 100%;
+    margin-top:8px;
+  }
+  .pwa-install-dismiss{
+    position:absolute;
+    top:12px;
+    right:12px;
+  }
+}
