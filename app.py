@@ -11,10 +11,8 @@ import os
 import json
 import time
 import re
-import subprocess
 from threading import Lock
 from flask import Flask, render_template, request, redirect, session, send_file, url_for, flash, make_response
-from werkzeug.utils import secure_filename
 from downloader import download_content
 from limiteur import get_user_data, spend_credit, add_credits, save_data, DATA_FILE
 import telebot
@@ -390,6 +388,7 @@ def download_page():
         user_id = session['user_id']
         url = request.form.get('url', '').strip()
         mode = request.form.get('mode', 'mp3')
+        quality = request.form.get('quality', '720')
         
         # SÉCURITÉ : Validation de l'URL
         url = sanitize_url(url)
@@ -397,12 +396,16 @@ def download_page():
             msg = "URL YouTube invalide ou manquante"
         elif mode not in ['mp3', 'mp4']:
             msg = "Mode de téléchargement invalide"
+        elif mode == 'mp4' and quality not in ['240', '360', '480', '720']:
+            msg = "Qualité vidéo invalide"
         else:
             if not spend_credit(user_id):
                 msg = "🔒 Crédits insuffisants. Achetez-en dans la boutique."
             else:
                 try:
-                    file_path = download_content(url, mode)
+                    # Pass quality only for MP4
+                    video_quality = quality if mode == 'mp4' else None
+                    file_path = download_content(url, mode, quality=video_quality)
                     # send_file will stream the file to client
                     response = make_response(send_file(file_path, as_attachment=True))
                     # cleanup local file after sending (attempt)
@@ -427,171 +430,6 @@ def download_page():
                         app.logger.exception("Erreur rollback crédit")
                     msg = f"Erreur téléchargement : {e}"
     return render_template("download.html", msg=msg)
-
-# === Audio Conversion ===
-ALLOWED_AUDIO_EXTENSIONS = {'mp3', 'wav', 'm4a', 'aac', 'ogg', 'flac', 'wma'}
-MAX_FILE_SIZE = 50 * 1024 * 1024  # 50 MB
-
-def allowed_audio_file(filename):
-    """Check if file has an allowed audio extension."""
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_AUDIO_EXTENSIONS
-
-def convert_audio_file(input_path, output_format, quality='medium'):
-    """Convert audio file using ffmpeg."""
-    # Quality settings (bitrate)
-    bitrates = {
-        'high': '320k',
-        'medium': '192k',
-        'low': '128k'
-    }
-    bitrate = bitrates.get(quality, '192k')
-    
-    # Generate output filename
-    base_name = os.path.splitext(input_path)[0]
-    output_path = f"{base_name}_converted.{output_format}"
-    
-    # Build ffmpeg command
-    cmd = ['ffmpeg', '-i', input_path, '-y']
-    
-    if output_format == 'mp3':
-        cmd.extend(['-codec:a', 'libmp3lame', '-b:a', bitrate])
-    elif output_format == 'wav':
-        cmd.extend(['-codec:a', 'pcm_s16le'])
-    elif output_format == 'aac':
-        cmd.extend(['-codec:a', 'aac', '-b:a', bitrate])
-    elif output_format == 'ogg':
-        cmd.extend(['-codec:a', 'libvorbis', '-b:a', bitrate])
-    elif output_format == 'flac':
-        cmd.extend(['-codec:a', 'flac'])
-    else:
-        cmd.extend(['-b:a', bitrate])
-    
-    cmd.append(output_path)
-    
-    # Run conversion with timeout (5 minutes max)
-    result = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
-    
-    if result.returncode != 0:
-        raise Exception(f"Conversion failed: {result.stderr}")
-    
-    return output_path
-
-@app.route('/convert', methods=['GET', 'POST'])
-def convert_page():
-    """Audio conversion page."""
-    if 'user_id' not in session:
-        return redirect(url_for('login'))
-    
-    msg = None
-    success_msg = None
-    
-    if request.method == 'POST':
-        user_id = session['user_id']
-        
-        # Check if file was uploaded
-        if 'audio_file' not in request.files:
-            msg = "Aucun fichier sélectionné"
-            return render_template("convert.html", msg=msg)
-        
-        file = request.files['audio_file']
-        
-        if file.filename == '':
-            msg = "Aucun fichier sélectionné"
-            return render_template("convert.html", msg=msg)
-        
-        if not allowed_audio_file(file.filename):
-            msg = "Format de fichier non supporté. Utilisez MP3, WAV, M4A, AAC, OGG, FLAC ou WMA."
-            return render_template("convert.html", msg=msg)
-        
-        # Check file size
-        file.seek(0, 2)  # Seek to end
-        file_size = file.tell()
-        file.seek(0)  # Reset to beginning
-        
-        if file_size > MAX_FILE_SIZE:
-            msg = "Fichier trop volumineux. Maximum 50 MB."
-            return render_template("convert.html", msg=msg)
-        
-        output_format = request.form.get('output_format', 'mp3')
-        quality = request.form.get('quality', 'medium')
-        
-        # Validate output format
-        if output_format not in ['mp3', 'wav', 'aac', 'ogg', 'flac']:
-            msg = "Format de sortie invalide"
-            return render_template("convert.html", msg=msg)
-        
-        # Validate quality
-        if quality not in ['high', 'medium', 'low']:
-            quality = 'medium'
-        
-        # Check credits
-        if not spend_credit(user_id):
-            msg = "🔒 Crédits insuffisants. Achetez-en dans la boutique."
-            return render_template("convert.html", msg=msg)
-        
-        input_path = None
-        output_path = None
-        try:
-            # Save uploaded file temporarily
-            upload_dir = "uploads"
-            if not os.path.exists(upload_dir):
-                os.makedirs(upload_dir)
-            
-            # Secure filename
-            safe_filename = secure_filename(file.filename)
-            input_path = os.path.join(upload_dir, f"{int(time.time())}_{safe_filename}")
-            file.save(input_path)
-            
-            # Convert the file
-            output_path = convert_audio_file(input_path, output_format, quality)
-            
-            # Clean up input file
-            try:
-                if input_path and os.path.exists(input_path):
-                    os.remove(input_path)
-            except Exception:
-                pass
-            
-            # Send the converted file
-            response = make_response(send_file(output_path, as_attachment=True))
-            
-            # Schedule cleanup after response is sent
-            @response.call_on_close
-            def cleanup_output_file():
-                try:
-                    if output_path and os.path.exists(output_path):
-                        os.remove(output_path)
-                except Exception:
-                    pass
-            
-            return response
-            
-        except Exception as e:
-            # Rollback credit on error
-            try:
-                data = {}
-                if os.path.exists(DATA_FILE):
-                    with open(DATA_FILE, "r", encoding="utf-8") as f:
-                        data = json.load(f)
-                uid = str(user_id)
-                if uid in data:
-                    data[uid]['credits'] = data[uid].get('credits', 0) + 1
-                    save_data(data)
-            except Exception:
-                app.logger.exception("Erreur rollback crédit conversion")
-            
-            msg = f"Erreur de conversion : {e}"
-            
-            # Clean up any temporary files
-            try:
-                if input_path and os.path.exists(input_path):
-                    os.remove(input_path)
-                if output_path and os.path.exists(output_path):
-                    os.remove(output_path)
-            except Exception:
-                pass
-    
-    return render_template("convert.html", msg=msg, success_msg=success_msg)
 
 # === Boutique web ===
 @app.route('/shop', methods=['GET', 'POST'])

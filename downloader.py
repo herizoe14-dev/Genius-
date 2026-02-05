@@ -23,26 +23,66 @@ def progress_hook(d, bot, chat_id, message_id):
             bot.edit_message_text(msg, chat_id, message_id, parse_mode="Markdown")
         except: pass
 
-def download_content(url, mode, bot=None, chat_id=None, message_id=None):
+def download_content(url, mode, quality=None, bot=None, chat_id=None, message_id=None):
+    """
+    Download content from YouTube.
+    
+    Args:
+        url: YouTube URL
+        mode: 'mp3' or 'mp4'
+        quality: Video quality for mp4 ('240', '360', '480', '720', 'best')
+        bot, chat_id, message_id: For Telegram progress updates
+    """
     download_path = "downloads"
     if not os.path.exists(download_path): os.makedirs(download_path)
     ydl_opts = get_bypass_config()
+    
+    # Set format based on mode and quality
+    if mode == 'mp3':
+        ydl_opts.update({
+            'format': 'bestaudio[ext=m4a]/bestaudio/best',
+            'postprocessors': [{
+                'key': 'FFmpegExtractAudio',
+                'preferredcodec': 'mp3',
+                'preferredquality': '192',
+            }],
+        })
+    else:
+        # MP4 with quality selection
+        if quality and quality != 'best':
+            # Height-based quality selection
+            ydl_opts.update({
+                'format': f'bestvideo[height<={quality}][ext=mp4]+bestaudio[ext=m4a]/best[height<={quality}][ext=mp4]/best[height<={quality}]/best',
+            })
+        else:
+            ydl_opts.update({
+                'format': 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best',
+            })
+    
     ydl_opts.update({
-        'format': 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best',
         'outtmpl': f'{download_path}/%(title)s.%(ext)s',
         'noplaylist': True, 'quiet': True, 'no_color': True,
+        'merge_output_format': 'mp4' if mode == 'mp4' else None,
     })
+    
     if bot and chat_id and message_id:
         ydl_opts['progress_hooks'] = [lambda d: progress_hook(d, bot, chat_id, message_id)]
 
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         info = ydl.extract_info(url, download=True)
         filename = ydl.prepare_filename(info)
+        
         if mode == 'mp3':
+            # FFmpeg postprocessor changes extension to .mp3
             new_name = filename.rsplit('.', 1)[0] + '.mp3'
-            if os.path.exists(new_name): os.remove(new_name)
-            os.rename(filename, new_name)
-            return new_name
+            if os.path.exists(new_name):
+                return new_name
+            # Fallback: rename if not auto-converted
+            if os.path.exists(filename):
+                os.rename(filename, new_name)
+                return new_name
+            # If neither exists, raise an error
+            raise FileNotFoundError(f"Fichier audio non trouvé après conversion: {new_name}")
         return filename
 
 def split_file(file_path, chunk_size=45 * 1024 * 1024):

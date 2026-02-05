@@ -14,20 +14,49 @@
     <div class="form-group">
       <label class="form-label">📦 Format de sortie</label>
       <div class="download-options">
-        <label class="download-option selected">
+        <label class="download-option selected" data-mode="mp3">
           <input type="radio" name="mode" value="mp3" checked>
           <span class="download-option-icon">🎵</span>
           <span class="download-option-label">MP3</span>
+          <span class="download-option-desc">Audio</span>
         </label>
-        <label class="download-option">
+        <label class="download-option" data-mode="mp4">
           <input type="radio" name="mode" value="mp4">
           <span class="download-option-icon">🎥</span>
           <span class="download-option-label">MP4</span>
+          <span class="download-option-desc">Vidéo</span>
         </label>
       </div>
     </div>
     
-    <button type="submit">
+    <!-- Video Quality Selection (shown only for MP4) -->
+    <div class="form-group" id="qualityGroup" style="display:none;">
+      <label class="form-label">📺 Qualité vidéo</label>
+      <div class="quality-options">
+        <label class="quality-option" data-quality="240">
+          <input type="radio" name="quality" value="240">
+          <span class="quality-label">240p</span>
+          <span class="quality-desc">Économique</span>
+        </label>
+        <label class="quality-option" data-quality="360">
+          <input type="radio" name="quality" value="360">
+          <span class="quality-label">360p</span>
+          <span class="quality-desc">Standard</span>
+        </label>
+        <label class="quality-option" data-quality="480">
+          <input type="radio" name="quality" value="480">
+          <span class="quality-label">480p</span>
+          <span class="quality-desc">DVD</span>
+        </label>
+        <label class="quality-option selected" data-quality="720">
+          <input type="radio" name="quality" value="720" checked>
+          <span class="quality-label">720p</span>
+          <span class="quality-desc">HD</span>
+        </label>
+      </div>
+    </div>
+    
+    <button type="submit" id="downloadBtn">
       ⬇️ Télécharger (1 crédit)
     </button>
   </form>
@@ -42,11 +71,39 @@
 <script>
 document.addEventListener('DOMContentLoaded', function() {
   const downloadOptions = document.querySelectorAll('.download-option');
+  const qualityGroup = document.getElementById('qualityGroup');
+  const qualityOptions = document.querySelectorAll('.quality-option');
+  const form = document.getElementById('downloadForm');
+  const downloadBtn = document.getElementById('downloadBtn');
+  
+  // Format option selection
   downloadOptions.forEach(function(option) {
     option.addEventListener('click', function() {
       downloadOptions.forEach(function(o) { o.classList.remove('selected'); });
       option.classList.add('selected');
+      
+      // Show/hide quality options based on mode
+      const mode = option.getAttribute('data-mode');
+      if (mode === 'mp4') {
+        qualityGroup.style.display = 'block';
+      } else {
+        qualityGroup.style.display = 'none';
+      }
     });
+  });
+  
+  // Quality option selection
+  qualityOptions.forEach(function(option) {
+    option.addEventListener('click', function() {
+      qualityOptions.forEach(function(o) { o.classList.remove('selected'); });
+      option.classList.add('selected');
+    });
+  });
+  
+  // Form submission loading state
+  form.addEventListener('submit', function() {
+    downloadBtn.disabled = true;
+    downloadBtn.textContent = '⏳ Téléchargement en cours...';
   });
 });
 </script>
