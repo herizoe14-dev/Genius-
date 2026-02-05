@@ -48,11 +48,14 @@ def download_content(url, mode, quality=None, bot=None, chat_id=None, message_id
             }],
         })
     else:
-        # MP4 with quality selection
-        if quality and quality != 'best':
-            # Height-based quality selection
+        # MP4 with quality selection - use format_sort to prioritize resolution
+        if quality and quality != 'best' and quality.isdigit():
+            height = int(quality)
+            # Use format_sort to prioritize the requested resolution
+            # This ensures we get the closest match to the requested quality
             ydl_opts.update({
-                'format': f'bestvideo[height<={quality}][ext=mp4]+bestaudio[ext=m4a]/best[height<={quality}][ext=mp4]/best[height<={quality}]/best',
+                'format': f'bestvideo[height<={height}]+bestaudio/best[height<={height}]',
+                'format_sort': [f'res:{height}', 'ext:mp4:m4a'],
             })
         else:
             ydl_opts.update({
