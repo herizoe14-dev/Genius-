@@ -60,6 +60,7 @@
       {% if session.get('user_id') %}
         <a href="{{ url_for('home') }}" class="side-link">🏠 Dashboard</a>
         <a href="{{ url_for('download_page') }}" class="side-link">📥 Télécharger</a>
+        <a href="{{ url_for('convert_page') }}" class="side-link">🎵 Convertir</a>
         <a href="{{ url_for('shop') }}" class="side-link">🛒 Boutique</a>
         <a href="{{ url_for('settings') }}" class="side-link">⚙️ Paramètres</a>
         <a href="{{ url_for('about') }}" class="side-link">📖 À propos</a>
@@ -95,6 +96,7 @@
       {% if session.get('user_id') %}
         <a class="top-link" href="{{ url_for('home') }}">🏠 Dashboard</a>
         <a class="top-link" href="{{ url_for('download_page') }}">📥 Télécharger</a>
+        <a class="top-link" href="{{ url_for('convert_page') }}">🎵 Convertir</a>
         <a class="top-link" href="{{ url_for('shop') }}">🛒 Boutique</a>
         <a class="top-link" href="{{ url_for('settings') }}">⚙️ Paramètres</a>
         <a class="top-link" href="{{ url_for('about') }}">📖 À propos</a>
