@@ -21,6 +21,7 @@ import auth
 from admin import resolve_telegram_id, send_telegram_message
 from web_notifications import get_user_web_notifications, clear_user_web_notifications, delete_single_notification
 import email_utils
+from flask import jsonify
 
 # === Configuration Flask ===
 app = Flask(__name__, static_folder="static", template_folder="templates")
@@ -301,7 +302,7 @@ def verify():
 def resend_otp():
     """Resend OTP code."""
     if 'pending_verification' not in session or 'pending_email' not in session:
-        return {"success": False, "message": "Session expirée"}, 400
+        return jsonify({"success": False, "message": "Session expirée"}), 400
     
     email = session['pending_email']
     
@@ -311,9 +312,9 @@ def resend_otp():
     ok, msg = email_utils.send_otp_email(email, otp)
     
     if not ok:
-        return {"success": False, "message": msg}, 500
+        return jsonify({"success": False, "message": msg}), 500
     
-    return {"success": True, "message": "Code renvoyé"}, 200
+    return jsonify({"success": True, "message": "Code renvoyé"}), 200
 
 # === Dashboard ===
 @app.route('/')
@@ -349,7 +350,7 @@ def offline():
 def get_notifications():
     """API endpoint pour récupérer le nombre de notifications."""
     if 'user_id' not in session:
-        return {"count": 0, "notifications": []}, 200
+        return jsonify({"count": 0, "notifications": []}), 200
     
     user_id = session['user_id']
     notifications = []
@@ -390,14 +391,14 @@ def get_notifications():
     # Trier par timestamp (plus récent en premier)
     notifications.sort(key=lambda x: x.get("timestamp", 0), reverse=True)
     
-    return {"count": len(notifications), "notifications": notifications}, 200
+    return jsonify({"count": len(notifications), "notifications": notifications}), 200
 
 # === Clear Notifications API ===
 @app.route('/api/notifications/clear', methods=['POST'])
 def clear_notifications():
     """API endpoint pour supprimer toutes les notifications."""
     if 'user_id' not in session:
-        return {"success": False, "message": "Non authentifié"}, 401
+        return jsonify({"success": False, "message": "Non authentifié"}), 401
     
     user_id = session['user_id']
     
@@ -425,9 +426,9 @@ def clear_notifications():
                     f.write(line + "\n")
     except Exception:
         app.logger.exception("Erreur lors de la suppression des notifications")
-        return {"success": False, "message": "Erreur serveur"}, 500
+        return jsonify({"success": False, "message": "Erreur serveur"}), 500
     
-    return {"success": True, "message": "Notifications supprimées"}, 200
+    return jsonify({"success": True, "message": "Notifications supprimées"}), 200
 
 # === Settings Page ===
 @app.route('/settings')
@@ -446,15 +447,15 @@ def settings():
 def update_theme():
     """API endpoint pour sauvegarder les préférences de thème."""
     if 'user_id' not in session:
-        return {"success": False, "message": "Non authentifié"}, 401
+        return jsonify({"success": False, "message": "Non authentifié"}), 401
     
     # Store theme preference in session (could be stored in user data later)
     theme = request.json.get('theme', 'dark')
     if theme not in ['dark', 'light', 'auto']:
-        return {"success": False, "message": "Thème invalide"}, 400
+        return jsonify({"success": False, "message": "Thème invalide"}), 400
     
     session['theme'] = theme
-    return {"success": True, "message": "Thème mis à jour"}, 200
+    return jsonify({"success": True, "message": "Thème mis à jour"}), 200
 
 # === Téléchargement ===
 @app.route('/download', methods=['GET', 'POST'])

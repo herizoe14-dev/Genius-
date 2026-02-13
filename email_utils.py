@@ -7,7 +7,7 @@ import string
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import json
 import config
 
@@ -37,7 +37,7 @@ def save_otp_data(data):
 def store_otp(email, otp):
     """Store OTP for email with expiration time."""
     data = load_otp_data()
-    expiry = (datetime.utcnow() + timedelta(minutes=OTP_VALIDITY_MINUTES)).isoformat()
+    expiry = (datetime.now(timezone.utc) + timedelta(minutes=OTP_VALIDITY_MINUTES)).isoformat()
     data[email] = {
         "otp": otp,
         "expiry": expiry,
@@ -59,7 +59,7 @@ def verify_otp(email, otp):
     
     # Check expiry
     expiry = datetime.fromisoformat(stored["expiry"])
-    if datetime.utcnow() > expiry:
+    if datetime.now(timezone.utc) > expiry:
         del data[email]
         save_otp_data(data)
         return False, "Code de vérification expiré. Demandez-en un nouveau."

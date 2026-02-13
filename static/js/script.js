@@ -1,14 +1,20 @@
 document.addEventListener('DOMContentLoaded', function () {
   // === Theme Management ===
   const initTheme = () => {
-    // Check for saved theme preference or default to light theme
-    const savedTheme = localStorage.getItem('theme') || 'light';
-    document.documentElement.setAttribute('data-theme', savedTheme);
-    
-    // Update theme toggle button if it exists
-    const themeToggle = document.getElementById('themeToggle');
-    if (themeToggle) {
-      updateThemeToggleIcon(savedTheme);
+    try {
+      // Check for saved theme preference or default to light theme
+      const savedTheme = localStorage.getItem('theme') || 'light';
+      document.documentElement.setAttribute('data-theme', savedTheme);
+      
+      // Update theme toggle button if it exists
+      const themeToggle = document.getElementById('themeToggle');
+      if (themeToggle) {
+        updateThemeToggleIcon(savedTheme);
+      }
+    } catch (e) {
+      // Fallback to light theme if localStorage is unavailable
+      console.warn('localStorage unavailable, using default theme');
+      document.documentElement.setAttribute('data-theme', 'light');
     }
   };
 
@@ -29,12 +35,21 @@ document.addEventListener('DOMContentLoaded', function () {
   };
 
   const toggleTheme = () => {
-    const currentTheme = document.documentElement.getAttribute('data-theme');
-    const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
-    
-    document.documentElement.setAttribute('data-theme', newTheme);
-    localStorage.setItem('theme', newTheme);
-    updateThemeToggleIcon(newTheme);
+    try {
+      const currentTheme = document.documentElement.getAttribute('data-theme');
+      const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+      
+      document.documentElement.setAttribute('data-theme', newTheme);
+      localStorage.setItem('theme', newTheme);
+      updateThemeToggleIcon(newTheme);
+    } catch (e) {
+      // If localStorage fails, just toggle the theme without saving
+      console.warn('Could not save theme preference');
+      const currentTheme = document.documentElement.getAttribute('data-theme');
+      const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', newTheme);
+      updateThemeToggleIcon(newTheme);
+    }
   };
 
   // Initialize theme
