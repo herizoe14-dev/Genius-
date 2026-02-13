@@ -53,7 +53,7 @@ def get_user_by_ip(ip):
 def current_timestamp():
     return int(time.time())
 
-def create_user(username, password, ip, telegram_id=None):
+def create_user(username, password, ip, telegram_id=None, email=None):
     """
     Crée un utilisateur avec mot de passe hashé et map ip->username.
     Retourne (True, "") si ok, (False, "raison") si erreur.
@@ -63,6 +63,14 @@ def create_user(username, password, ip, telegram_id=None):
     if username in data.get("users", {}):
         log_suspicious_activity("duplicate_username", username, ip, "Tentative de création avec nom existant")
         return False, "Nom d'utilisateur déjà utilisé."
+    
+    # Check if email already exists
+    if email:
+        for user, info in data.get("users", {}).items():
+            if info.get("email") == email:
+                log_suspicious_activity("duplicate_email", username, ip, "Tentative de création avec email existant")
+                return False, "Cette adresse email est déjà utilisée."
+    
     existing = data.get("ip_map", {}).get(ip)
     if existing:
         log_suspicious_activity("multi_account", username, ip, f"IP déjà utilisée par {existing}")
@@ -73,6 +81,8 @@ def create_user(username, password, ip, telegram_id=None):
         "password_hash": pwd_hash,
         "created_at": now,
         "telegram_id": telegram_id or "",
+        "email": email or "",
+        "email_verified": False if email else True,  # Require verification if email provided
         "failed_attempts": 0,
         "locked_until": 0,
         "last_ip": ip
@@ -98,6 +108,10 @@ def authenticate_user(username, password):
         remaining = locked_until - now
         log_suspicious_activity("locked_attempt", username, "unknown", f"Tentative sur compte verrouillé, {remaining}s restant")
         return False, f"Compte verrouillé. Réessaye dans {remaining // 60} min."
+
+    # Check if email verification is required
+    if user.get("email") and not user.get("email_verified", True):
+        return False, "Veuillez d'abord vérifier votre adresse email."
 
     if check_password_hash(user.get("password_hash", ""), password):
         # succès : reset counters
@@ -133,3 +147,19 @@ def unregister_ip(ip):
         save_auth_data(data)
         return True
     return False
+
+def verify_user_email(username):
+    """Mark user's email as verified."""
+    data = load_auth_data()
+    if username not in data.get("users", {}):
+        return False
+    data["users"][username]["email_verified"] = True
+    save_auth_data(data)
+    return True
+
+def get_user_email(username):
+    """Get user's email address."""
+    user = get_user(username)
+    if user:
+        return user.get("email")
+    return None
