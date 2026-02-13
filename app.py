@@ -20,6 +20,7 @@ import config
 import auth
 from admin import resolve_telegram_id, send_telegram_message
 from web_notifications import get_user_web_notifications, clear_user_web_notifications, delete_single_notification
+import email_utils
 
 # === Configuration Flask ===
 app = Flask(__name__, static_folder="static", template_folder="templates")
@@ -156,6 +157,7 @@ def register():
     if request.method == 'POST':
         username = request.form.get('username', '').strip()
         password = request.form.get('password', '')
+        email = request.form.get('email', '').strip()
         telegram_id = request.form.get('telegram_id', '').strip()
         
         # SÉCURITÉ : Validation et sanitisation des entrées
@@ -179,6 +181,15 @@ def register():
             flash("Mot de passe doit contenir au moins un chiffre.", "danger")
             return redirect(url_for('register'))
         
+        # Validation email (required now)
+        if not email:
+            flash("L'adresse email est requise.", "danger")
+            return redirect(url_for('register'))
+        
+        if not email_utils.is_valid_email(email):
+            flash("Adresse email invalide.", "danger")
+            return redirect(url_for('register'))
+        
         # Validation Telegram ID si fourni
         if telegram_id:
             telegram_id = sanitize_telegram_id(telegram_id)
@@ -187,14 +198,27 @@ def register():
                 return redirect(url_for('register'))
         
         with auth_lock:
-            ok, reason = auth.create_user(username, password, ip, telegram_id or None)
+            ok, reason = auth.create_user(username, password, ip, telegram_id or None, email)
             if not ok:
                 flash(reason, "danger")
                 return redirect(url_for('register'))
             # initialise données user si nécessaire
             get_user_data(username)
-        flash("Compte créé. Connecte-toi.", "success")
-        return redirect(url_for('login'))
+        
+        # Send OTP email
+        otp = email_utils.generate_otp()
+        email_utils.store_otp(email, otp)
+        ok, msg = email_utils.send_otp_email(email, otp)
+        
+        if not ok:
+            flash(f"Compte créé mais erreur d'envoi d'email: {msg}. Contactez l'administrateur.", "warning")
+            return redirect(url_for('login'))
+        
+        # Store email in session for verification
+        session['pending_verification'] = username
+        session['pending_email'] = email
+        flash("Compte créé. Vérifiez votre email pour le code de vérification.", "success")
+        return redirect(url_for('verify'))
     return render_template("register.html")
 
 @app.route('/login', methods=['GET', 'POST'])
@@ -234,7 +258,62 @@ def login():
 @app.route('/logout')
 def logout():
     session.pop('user_id', None)
+    session.pop('pending_verification', None)
+    session.pop('pending_email', None)
     return redirect(url_for('login'))
+
+@app.route('/verify', methods=['GET', 'POST'])
+def verify():
+    """Email verification with OTP."""
+    if 'pending_verification' not in session or 'pending_email' not in session:
+        flash("Session de vérification expirée. Veuillez vous réinscrire.", "danger")
+        return redirect(url_for('register'))
+    
+    username = session['pending_verification']
+    email = session['pending_email']
+    
+    if request.method == 'POST':
+        otp = request.form.get('otp', '').strip()
+        
+        if not otp:
+            flash("Veuillez entrer le code de vérification.", "danger")
+            return render_template("verify.html", email=email)
+        
+        ok, reason = email_utils.verify_otp(email, otp)
+        
+        if not ok:
+            flash(reason, "danger")
+            return render_template("verify.html", email=email)
+        
+        # Mark email as verified
+        auth.verify_user_email(username)
+        
+        # Clear session
+        session.pop('pending_verification', None)
+        session.pop('pending_email', None)
+        
+        flash("Email vérifié avec succès ! Vous pouvez maintenant vous connecter.", "success")
+        return redirect(url_for('login'))
+    
+    return render_template("verify.html", email=email)
+
+@app.route('/resend-otp', methods=['POST'])
+def resend_otp():
+    """Resend OTP code."""
+    if 'pending_verification' not in session or 'pending_email' not in session:
+        return {"success": False, "message": "Session expirée"}, 400
+    
+    email = session['pending_email']
+    
+    # Generate and send new OTP
+    otp = email_utils.generate_otp()
+    email_utils.store_otp(email, otp)
+    ok, msg = email_utils.send_otp_email(email, otp)
+    
+    if not ok:
+        return {"success": False, "message": msg}, 500
+    
+    return {"success": True, "message": "Code renvoyé"}, 200
 
 # === Dashboard ===
 @app.route('/')

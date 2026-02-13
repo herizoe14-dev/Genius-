@@ -1,4 +1,51 @@
 document.addEventListener('DOMContentLoaded', function () {
+  // === Theme Management ===
+  const initTheme = () => {
+    // Check for saved theme preference or default to light theme
+    const savedTheme = localStorage.getItem('theme') || 'light';
+    document.documentElement.setAttribute('data-theme', savedTheme);
+    
+    // Update theme toggle button if it exists
+    const themeToggle = document.getElementById('themeToggle');
+    if (themeToggle) {
+      updateThemeToggleIcon(savedTheme);
+    }
+  };
+
+  const updateThemeToggleIcon = (theme) => {
+    const themeToggle = document.getElementById('themeToggle');
+    if (!themeToggle) return;
+    
+    const icon = themeToggle.querySelector('svg');
+    if (theme === 'dark') {
+      icon.innerHTML = `
+        <path d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/>
+      `;
+    } else {
+      icon.innerHTML = `
+        <path d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/>
+      `;
+    }
+  };
+
+  const toggleTheme = () => {
+    const currentTheme = document.documentElement.getAttribute('data-theme');
+    const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+    
+    document.documentElement.setAttribute('data-theme', newTheme);
+    localStorage.setItem('theme', newTheme);
+    updateThemeToggleIcon(newTheme);
+  };
+
+  // Initialize theme
+  initTheme();
+
+  // Add theme toggle button click handler
+  const themeToggle = document.getElementById('themeToggle');
+  if (themeToggle) {
+    themeToggle.addEventListener('click', toggleTheme);
+  }
+
   // === Service Worker Registration for PWA ===
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', function() {
