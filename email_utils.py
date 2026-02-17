@@ -9,6 +9,7 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from datetime import datetime, timedelta, timezone
 import json
+import telebot
 import config
 
 # OTP storage file
@@ -184,8 +185,6 @@ def send_otp_telegram(username, email, otp):
     The admin will provide the code to the user.
     Returns (True, "") if sent successfully, (False, reason) if failed.
     """
-    import telebot
-    
     try:
         bot_admin = telebot.TeleBot(config.TOKEN_BOT_ADMIN)
         
@@ -202,7 +201,7 @@ def send_otp_telegram(username, email, otp):
             "━━━━━━━━━━━━━━━━━━━━\n"
             "📋 Instructions :\n"
             "1. Transmettez ce code à l'utilisateur\n"
-            "2. Le code expire dans 10 minutes\n"
+            f"2. Le code expire dans {OTP_VALIDITY_MINUTES} minutes\n"
             "3. Maximum 3 tentatives autorisées"
         )
         
