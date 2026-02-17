@@ -1,12 +1,64 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="card">
-  <h2>🔐 Vérification</h2>
-  <form method="post" action="{{ url_for('verify') }}">
-    <input type="hidden" name="email" value="{{ email }}">
-    <input type="text" name="otp" placeholder="Code reçu" required>
-    <button type="submit">Valider</button>
+<div class="card auth-form">
+  <div class="auth-header">
+    <span class="auth-icon">🔐</span>
+    <h2 class="auth-title">Vérification Email</h2>
+    <p class="muted">Entrez le code envoyé à <strong>{{ email }}</strong></p>
+  </div>
+  
+  <form method="post">
+    <div class="form-group">
+      <label class="form-label" for="otp-input">Code de vérification</label>
+      <input type="text" id="otp-input" name="otp" placeholder="Entrez le code à 6 chiffres" required maxlength="6" pattern="[0-9]{6}" inputmode="numeric" autocomplete="one-time-code">
+      <p class="form-hint">Le code est valide pendant 10 minutes</p>
+    </div>
+    
+    <button type="submit">Vérifier</button>
   </form>
-  {% if msg %}<p class="error">{{ msg }}</p>{% endif %}
+  
+  <div class="divider">ou</div>
+  
+  <div style="text-align:center;">
+    <p class="muted" style="margin-bottom:12px;">Vous n'avez pas reçu le code ?</p>
+    <button id="resendOtpBtn" class="btn-secondary" style="width:100%;">Renvoyer le code</button>
+  </div>
 </div>
+
+<script>
+document.getElementById('resendOtpBtn').addEventListener('click', async function() {
+  const btn = this;
+  btn.disabled = true;
+  btn.textContent = 'Envoi en cours...';
+  
+  try {
+    const response = await fetch('{{ url_for("resend_otp") }}', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    });
+    
+    const data = await response.json();
+    
+    if (data.success) {
+      btn.textContent = '✓ Code renvoyé';
+      btn.style.background = 'var(--accent)';
+      setTimeout(() => {
+        btn.disabled = false;
+        btn.textContent = 'Renvoyer le code';
+        btn.style.background = '';
+      }, 5000);
+    } else {
+      alert('Erreur: ' + data.message);
+      btn.disabled = false;
+      btn.textContent = 'Renvoyer le code';
+    }
+  } catch (error) {
+    alert('Erreur de connexion');
+    btn.disabled = false;
+    btn.textContent = 'Renvoyer le code';
+  }
+});
+</script>
 {% endblock %}

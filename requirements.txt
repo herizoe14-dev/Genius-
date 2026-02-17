@@ -15,6 +15,9 @@ python-dotenv>=1.0.0
 # Install separately: pip install yt-dlp
 yt-dlp>=2023.12.30
 
+# Email Support
+Flask-Mail>=0.9.1
+
 # Note: ffmpeg is also required for audio conversion
 # Install ffmpeg from your system package manager
 # Ubuntu/Debian: sudo apt-get install ffmpeg
