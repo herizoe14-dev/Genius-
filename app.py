@@ -237,8 +237,8 @@ def verify():
     if request.method == 'POST':
         otp_code = request.form.get('otp', '').strip()
         
-        # Validation basique du format OTP
-        if not otp_code or not otp_code.isdigit() or len(otp_code) != 6:
+        # Validation du format OTP (utilise la fonction centralisée dans auth.py)
+        if not auth.is_valid_otp_format(otp_code):
             flash("Code OTP invalide. Entrez les 6 chiffres.", "danger")
             return redirect(url_for('verify'))
         

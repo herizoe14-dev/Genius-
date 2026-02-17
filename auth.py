@@ -57,7 +57,13 @@ def current_timestamp():
 
 def generate_otp():
     """Génère un code OTP à 6 chiffres."""
-    return ''.join([str(secrets.randbelow(10)) for _ in range(6)])
+    return str(secrets.randbelow(1000000)).zfill(6)
+
+def is_valid_otp_format(otp_code):
+    """Valide le format du code OTP (6 chiffres)."""
+    if not otp_code or not isinstance(otp_code, str):
+        return False
+    return len(otp_code) == 6 and otp_code.isdigit()
 
 def create_user(username, password, ip, telegram_id=None):
     """
