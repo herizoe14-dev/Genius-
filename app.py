@@ -187,15 +187,73 @@ def register():
                 return redirect(url_for('register'))
         
         with auth_lock:
-            ok, reason = auth.create_user(username, password, ip, telegram_id or None)
+            ok, result = auth.create_user(username, password, ip, telegram_id or None)
             if not ok:
-                flash(reason, "danger")
+                flash(result, "danger")
                 return redirect(url_for('register'))
+            # result contient le code OTP
+            otp_code = result
             # initialise données user si nécessaire
             get_user_data(username)
-        flash("Compte créé. Connecte-toi.", "success")
-        return redirect(url_for('login'))
+        
+        # Envoyer l'OTP au bot admin Telegram
+        admin_text = (
+            "🔔 **NOUVEAU COMPTE À VÉRIFIER**\n"
+            "━━━━━━━━━━━━━━━━━━━━\n"
+            f"👤 Utilisateur : `{username}`\n"
+            f"🔑 Code OTP : `{otp_code}`\n"
+            "━━━━━━━━━━━━━━━━━━━━\n"
+            "⏰ Code valide pendant 10 minutes"
+        )
+        send_telegram_message(
+            bot_admin,
+            config.ADMIN_ID,
+            admin_text,
+            log_context="notification OTP admin Telegram",
+            log_func=app.logger.exception,
+            parse_mode="Markdown"
+        )
+        
+        # Stocker le username en session pour la vérification
+        session['pending_verification'] = username
+        flash("Compte créé ! Entrez le code OTP reçu via Telegram pour activer votre compte.", "success")
+        return redirect(url_for('verify'))
     return render_template("register.html")
+
+@app.route('/verify', methods=['GET', 'POST'])
+def verify():
+    """Route pour vérifier le compte avec le code OTP."""
+    ip = get_client_ip()
+    if too_many_requests(ip):
+        flash("Trop de requêtes depuis ton IP, réessaie plus tard.", "danger")
+        return redirect(url_for('login'))
+    
+    # Récupérer le username en attente de vérification
+    username = session.get('pending_verification')
+    if not username:
+        flash("Aucun compte en attente de vérification.", "warning")
+        return redirect(url_for('register'))
+    
+    if request.method == 'POST':
+        otp_code = request.form.get('otp', '').strip()
+        
+        # Validation du format OTP (utilise la fonction centralisée dans auth.py)
+        if not auth.is_valid_otp_format(otp_code):
+            flash("Code OTP invalide. Entrez les 6 chiffres.", "danger")
+            return redirect(url_for('verify'))
+        
+        with auth_lock:
+            ok, reason = auth.verify_otp(username, otp_code)
+            if not ok:
+                flash(reason, "danger")
+                return redirect(url_for('verify'))
+        
+        # Vérification réussie
+        session.pop('pending_verification', None)
+        flash("Compte vérifié avec succès ! Connectez-vous maintenant.", "success")
+        return redirect(url_for('login'))
+    
+    return render_template("verify.html", username=username)
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -223,6 +281,11 @@ def login():
             # record attempt for IP based login-throttling regardless of ok
             record_login_attempt(ip)
             if ok:
+                # Vérifier si le compte est vérifié
+                if not auth.is_user_verified(username):
+                    session['pending_verification'] = username
+                    flash("Veuillez d'abord vérifier votre compte avec le code OTP.", "warning")
+                    return redirect(url_for('verify'))
                 session['user_id'] = username
                 flash("Connecté avec succès.", "success")
                 return redirect(url_for('home'))

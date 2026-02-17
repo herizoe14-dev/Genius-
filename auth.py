@@ -2,6 +2,7 @@ import json
 import os
 import time
 import re
+import secrets
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime, timedelta
 
@@ -9,6 +10,7 @@ AUTH_FILE = "auth_data.json"
 # Politique de sécurité
 MAX_FAILED = 5            # nombre de tentatives avant lock
 LOCK_SECONDS = 5 * 60     # durée du lock en secondes (ici 5 minutes)
+OTP_EXPIRY_SECONDS = 10 * 60  # OTP valide pendant 10 minutes
 
 # Nouveau : Logging des tentatives suspectes
 SUSPICIOUS_LOG = "suspicious_activity.log"
@@ -53,10 +55,21 @@ def get_user_by_ip(ip):
 def current_timestamp():
     return int(time.time())
 
+def generate_otp():
+    """Génère un code OTP à 6 chiffres."""
+    return str(secrets.randbelow(1000000)).zfill(6)
+
+def is_valid_otp_format(otp_code):
+    """Valide le format du code OTP (6 chiffres)."""
+    if not otp_code or not isinstance(otp_code, str):
+        return False
+    return len(otp_code) == 6 and otp_code.isdigit()
+
 def create_user(username, password, ip, telegram_id=None):
     """
     Crée un utilisateur avec mot de passe hashé et map ip->username.
-    Retourne (True, "") si ok, (False, "raison") si erreur.
+    Génère un OTP pour la vérification via Telegram.
+    Retourne (True, otp_code) si ok, (False, "raison") si erreur.
     """
     username = str(username)
     data = load_auth_data()
@@ -69,17 +82,22 @@ def create_user(username, password, ip, telegram_id=None):
         return False, "Un compte existe déjà depuis cette IP."
     pwd_hash = generate_password_hash(password)
     now = datetime.utcnow().isoformat() + "Z"
+    otp_code = generate_otp()
+    otp_expires = current_timestamp() + OTP_EXPIRY_SECONDS
     data.setdefault("users", {})[username] = {
         "password_hash": pwd_hash,
         "created_at": now,
         "telegram_id": telegram_id or "",
         "failed_attempts": 0,
         "locked_until": 0,
-        "last_ip": ip
+        "last_ip": ip,
+        "verified": False,
+        "otp_code": otp_code,
+        "otp_expires": otp_expires
     }
     data.setdefault("ip_map", {})[ip] = username
     save_auth_data(data)
-    return True, ""
+    return True, otp_code
 
 def authenticate_user(username, password):
     """
@@ -133,3 +151,60 @@ def unregister_ip(ip):
         save_auth_data(data)
         return True
     return False
+
+def verify_otp(username, otp_code):
+    """
+    Vérifie le code OTP pour un utilisateur.
+    Retourne (True, "") si succès, (False, "raison") si erreur.
+    """
+    data = load_auth_data()
+    user = data.get("users", {}).get(username)
+    if not user:
+        return False, "Utilisateur inconnu."
+    
+    if user.get("verified", False):
+        return False, "Compte déjà vérifié."
+    
+    stored_otp = user.get("otp_code", "")
+    otp_expires = int(user.get("otp_expires", 0))
+    now = current_timestamp()
+    
+    if now > otp_expires:
+        return False, "Code OTP expiré. Veuillez vous réinscrire."
+    
+    if otp_code != stored_otp:
+        return False, "Code OTP incorrect."
+    
+    # OTP valide, marquer comme vérifié
+    user["verified"] = True
+    user["otp_code"] = ""  # Effacer le code utilisé
+    user["otp_expires"] = 0
+    save_auth_data(data)
+    return True, ""
+
+def is_user_verified(username):
+    """Vérifie si un utilisateur a validé son compte avec OTP."""
+    data = load_auth_data()
+    user = data.get("users", {}).get(username)
+    if not user:
+        return False
+    return user.get("verified", False)
+
+def regenerate_otp(username):
+    """
+    Régénère un nouveau code OTP pour un utilisateur non vérifié.
+    Retourne (True, otp_code) si succès, (False, "raison") si erreur.
+    """
+    data = load_auth_data()
+    user = data.get("users", {}).get(username)
+    if not user:
+        return False, "Utilisateur inconnu."
+    
+    if user.get("verified", False):
+        return False, "Compte déjà vérifié."
+    
+    otp_code = generate_otp()
+    user["otp_code"] = otp_code
+    user["otp_expires"] = current_timestamp() + OTP_EXPIRY_SECONDS
+    save_auth_data(data)
+    return True, otp_code
