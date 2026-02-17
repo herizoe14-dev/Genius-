@@ -206,19 +206,19 @@ def register():
             # initialise données user si nécessaire
             get_user_data(username)
         
-        # Send OTP email
+        # Send OTP via Telegram to admin
         otp = email_utils.generate_otp()
         email_utils.store_otp(email, otp)
-        ok, msg = email_utils.send_otp_email(email, otp)
+        ok, msg = email_utils.send_otp_telegram(username, email, otp)
         
         if not ok:
-            flash(f"Compte créé mais erreur d'envoi d'email: {msg}. Contactez l'administrateur.", "warning")
+            flash(f"Compte créé mais erreur d'envoi du code: {msg}. Contactez l'administrateur.", "warning")
             return redirect(url_for('login'))
         
         # Store email in session for verification
         session['pending_verification'] = username
         session['pending_email'] = email
-        flash("Compte créé. Vérifiez votre email pour le code de vérification.", "success")
+        flash("Compte créé. Le code de vérification a été envoyé à l'administrateur via Telegram.", "success")
         return redirect(url_for('verify'))
     return render_template("register.html")
 
@@ -300,21 +300,22 @@ def verify():
 
 @app.route('/resend-otp', methods=['POST'])
 def resend_otp():
-    """Resend OTP code."""
+    """Resend OTP code via Telegram to admin."""
     if 'pending_verification' not in session or 'pending_email' not in session:
         return jsonify({"success": False, "message": "Session expirée"}), 400
     
+    username = session['pending_verification']
     email = session['pending_email']
     
-    # Generate and send new OTP
+    # Generate and send new OTP via Telegram
     otp = email_utils.generate_otp()
     email_utils.store_otp(email, otp)
-    ok, msg = email_utils.send_otp_email(email, otp)
+    ok, msg = email_utils.send_otp_telegram(username, email, otp)
     
     if not ok:
         return jsonify({"success": False, "message": msg}), 500
     
-    return jsonify({"success": True, "message": "Code renvoyé"}), 200
+    return jsonify({"success": True, "message": "Code renvoyé à l'administrateur via Telegram"}), 200
 
 # === Dashboard ===
 @app.route('/')

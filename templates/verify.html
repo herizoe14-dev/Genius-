@@ -3,8 +3,23 @@
 <div class="card auth-form">
   <div class="auth-header">
     <span class="auth-icon">🔐</span>
-    <h2 class="auth-title">Vérification Email</h2>
-    <p class="muted">Entrez le code envoyé à <strong>{{ email }}</strong></p>
+    <h2 class="auth-title">Vérification du Compte</h2>
+    <p class="muted">Code envoyé à l'administrateur via Telegram</p>
+  </div>
+  
+  <div style="background: rgba(0,209,122,0.1); border: 1px solid var(--accent); border-radius: 8px; padding: 16px; margin-bottom: 20px;">
+    <p style="margin: 0; font-size: 0.9rem;">
+      📱 <strong>Instructions :</strong><br>
+      1. L'administrateur a reçu votre code OTP via Telegram<br>
+      2. Contactez l'administrateur pour obtenir votre code<br>
+      3. Entrez le code à 6 chiffres ci-dessous
+    </p>
+  </div>
+  
+  <div style="background: rgba(255,255,255,0.05); border-radius: 8px; padding: 12px; margin-bottom: 20px;">
+    <p style="margin: 0; font-size: 0.85rem; opacity: 0.8;">
+      👤 <strong>Utilisateur :</strong> {{ email }}
+    </p>
   </div>
   
   <form method="post">
@@ -21,7 +36,7 @@
   
   <div style="text-align:center;">
     <p class="muted" style="margin-bottom:12px;">Vous n'avez pas reçu le code ?</p>
-    <button id="resendOtpBtn" class="btn-secondary" style="width:100%;">Renvoyer le code</button>
+    <button id="resendOtpBtn" class="btn-secondary" style="width:100%;">Renvoyer le code via Telegram</button>
   </div>
 </div>
 
@@ -42,22 +57,22 @@ document.getElementById('resendOtpBtn').addEventListener('click', async function
     const data = await response.json();
     
     if (data.success) {
-      btn.textContent = '✓ Code renvoyé';
+      btn.textContent = '✓ Code renvoyé via Telegram';
       btn.style.background = 'var(--accent)';
       setTimeout(() => {
         btn.disabled = false;
-        btn.textContent = 'Renvoyer le code';
+        btn.textContent = 'Renvoyer le code via Telegram';
         btn.style.background = '';
       }, 5000);
     } else {
       alert('Erreur: ' + data.message);
       btn.disabled = false;
-      btn.textContent = 'Renvoyer le code';
+      btn.textContent = 'Renvoyer le code via Telegram';
     }
   } catch (error) {
     alert('Erreur de connexion');
     btn.disabled = false;
-    btn.textContent = 'Renvoyer le code';
+    btn.textContent = 'Renvoyer le code via Telegram';
   }
 });
 </script>
