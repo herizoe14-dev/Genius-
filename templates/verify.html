@@ -1,12 +1,31 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="card">
-  <h2>🔐 Vérification</h2>
+<div class="card auth-form">
+  <div class="auth-header">
+    <span class="auth-icon">🔐</span>
+    <h2 class="auth-title">Vérification OTP</h2>
+    <p class="muted">Entrez le code reçu via Telegram</p>
+  </div>
+  
   <form method="post" action="{{ url_for('verify') }}">
-    <input type="hidden" name="email" value="{{ email }}">
-    <input type="text" name="otp" placeholder="Code reçu" required>
-    <button type="submit">Valider</button>
+    <div class="form-group">
+      <label class="form-label">Compte</label>
+      <input type="text" value="{{ username }}" disabled>
+    </div>
+    
+    <div class="form-group">
+      <label class="form-label">Code OTP</label>
+      <input type="text" name="otp" placeholder="Entrez les 6 chiffres" maxlength="6" pattern="[0-9]{6}" required>
+      <p class="form-hint">Code à 6 chiffres envoyé à l'admin Telegram</p>
+    </div>
+    
+    <button type="submit">Vérifier mon compte</button>
   </form>
-  {% if msg %}<p class="error">{{ msg }}</p>{% endif %}
+  
+  <div class="divider">besoin d'aide ?</div>
+  
+  <p class="muted" style="text-align:center;font-size:0.85rem;">
+    📱 Contactez l'administrateur via Telegram pour obtenir votre code OTP
+  </p>
 </div>
 {% endblock %}
