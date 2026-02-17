@@ -178,6 +178,45 @@ L'équipe Genius Bot
     except Exception as e:
         return False, f"Erreur inattendue : {str(e)}"
 
+def send_otp_telegram(username, email, otp):
+    """
+    Send OTP via Telegram to admin bot.
+    The admin will provide the code to the user.
+    Returns (True, "") if sent successfully, (False, reason) if failed.
+    """
+    import telebot
+    
+    try:
+        bot_admin = telebot.TeleBot(config.TOKEN_BOT_ADMIN)
+        
+        # Create a formatted message for admin
+        msg_text = (
+            "🔐 **NOUVEAU CODE OTP**\n"
+            "━━━━━━━━━━━━━━━━━━━━\n"
+            f"👤 Utilisateur : `{username}`\n"
+            f"📧 Email : `{email}`\n"
+            "━━━━━━━━━━━━━━━━━━━━\n"
+            f"🔑 **Code OTP : `{otp}`**\n"
+            "━━━━━━━━━━━━━━━━━━━━\n"
+            f"⏱️ Validité : {OTP_VALIDITY_MINUTES} minutes\n"
+            "━━━━━━━━━━━━━━━━━━━━\n"
+            "📋 Instructions :\n"
+            "1. Transmettez ce code à l'utilisateur\n"
+            "2. Le code expire dans 10 minutes\n"
+            "3. Maximum 3 tentatives autorisées"
+        )
+        
+        bot_admin.send_message(
+            config.ADMIN_ID,
+            msg_text,
+            parse_mode="Markdown"
+        )
+        
+        return True, ""
+        
+    except Exception as e:
+        return False, f"Erreur d'envoi Telegram : {str(e)}"
+
 def is_valid_email(email):
     """Basic email validation."""
     import re
