@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="card auth-form">
+  <div class="auth-header">
+    <div class="auth-icon-wrapper warning">
+      <span class="auth-icon">🔄</span>
+    </div>
+    <h2 class="auth-title">Récupération de compte</h2>
+    <p class="muted">Récupérez votre ID unique si vous l'avez oublié</p>
+  </div>
+  
+  <form method="post">
+    <div class="form-group">
+      <label class="form-label">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-right: 6px;">
+          <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path>
+        </svg>
+        ID Telegram
+      </label>
+      <input type="text" name="telegram_id" placeholder="Votre ID Telegram (si lié au compte)">
+      <p class="form-hint">L'ID Telegram que vous avez fourni lors de l'inscription</p>
+    </div>
+    
+    <div class="divider">ou</div>
+    
+    <div class="form-group">
+      <label class="checkbox-card">
+        <input type="checkbox" name="use_ip">
+        <div class="checkbox-content">
+          <div class="checkbox-icon">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="2" y="2" width="20" height="8" rx="2" ry="2"></rect>
+              <rect x="2" y="14" width="20" height="8" rx="2" ry="2"></rect>
+              <line x1="6" y1="6" x2="6.01" y2="6"></line>
+              <line x1="6" y1="18" x2="6.01" y2="18"></line>
+            </svg>
+          </div>
+          <div class="checkbox-text">
+            <span class="checkbox-title">Utiliser mon adresse IP actuelle</span>
+            <span class="checkbox-desc">Fonctionne si vous vous connectez depuis la même IP que lors de l'inscription</span>
+          </div>
+          <div class="checkbox-indicator"></div>
+        </div>
+      </label>
+    </div>
+    
+    <button type="submit" class="btn-full">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="23 4 23 10 17 10"></polyline>
+        <polyline points="1 20 1 14 7 14"></polyline>
+        <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+      </svg>
+      <span>Récupérer mon compte</span>
+    </button>
+  </form>
+  
+  <div class="info-card warning">
+    <div class="info-card-header">
+      <span class="info-card-icon">⏰</span>
+      <strong>Délai de récupération</strong>
+    </div>
+    <p>La récupération de compte n'est disponible qu'<strong>après 24 heures</strong> suivant la création du compte. Ceci est une mesure de sécurité.</p>
+  </div>
+  
+  <div class="divider">ou</div>
+  
+  <div class="auth-buttons-group">
+    <a href="{{ url_for('login') }}" class="btn-secondary btn-full">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"></path>
+        <polyline points="10 17 15 12 10 7"></polyline>
+        <line x1="15" y1="12" x2="3" y2="12"></line>
+      </svg>
+      <span>J'ai mon ID</span>
+    </a>
+    <a href="{{ url_for('register') }}" class="btn-outline btn-full">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+        <circle cx="8.5" cy="7" r="4"></circle>
+        <line x1="20" y1="8" x2="20" y2="14"></line>
+        <line x1="23" y1="11" x2="17" y2="11"></line>
+      </svg>
+      <span>Créer un compte</span>
+    </a>
+  </div>
+</div>
+{% endblock %}

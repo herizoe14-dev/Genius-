@@ -6,11 +6,13 @@ Remarques :
 - Envoie les notifications d'achat uniquement au bot Telegram (bot_admin).
 - Protection simple anti-brute-force et en-têtes de sécurité appliqués globalement.
 - Utiliser Python 3.8+ ; installe Flask et pyTelegramBotAPI (voir instructions en bas).
+- Système d'authentification par ID unique (pas de mot de passe).
 """
 import os
 import json
 import time
 import re
+from datetime import timedelta
 from threading import Lock
 from flask import Flask, render_template, request, redirect, session, send_file, url_for, flash, make_response
 from downloader import download_content
@@ -19,8 +21,7 @@ import telebot
 import config
 import auth
 from admin import resolve_telegram_id, send_telegram_message
-from web_notifications import get_user_web_notifications, clear_user_web_notifications, delete_single_notification
-import email_utils
+from web_notifications import get_user_web_notifications, clear_user_web_notifications, delete_single_notification, add_web_notification
 from flask import jsonify
 
 # === Configuration Flask ===
@@ -32,7 +33,8 @@ app.secret_key = os.getenv("FLASK_SECRET") or os.urandom(32).hex()
 app.config.update(
     SESSION_COOKIE_SECURE=True,
     SESSION_COOKIE_HTTPONLY=True,
-    SESSION_COOKIE_SAMESITE='Lax'
+    SESSION_COOKIE_SAMESITE='Lax',
+    PERMANENT_SESSION_LIFETIME=timedelta(days=30)  # Sessions valides 30 jours
 )
 
 # Thread-safety pour auth et autres écritures
@@ -47,14 +49,15 @@ bot_user = telebot.TeleBot(config.TOKEN_BOT_USER)
 PENDING_LOG = "pending_purchases.log"
 
 # === Input validation and sanitization ===
-def sanitize_username(username):
-    """Valide le nom d'utilisateur pour éviter les injections."""
-    if not username or not isinstance(username, str):
+def sanitize_unique_id(unique_id):
+    """Valide l'ID unique pour éviter les injections."""
+    if not unique_id or not isinstance(unique_id, str):
         return None
-    # Vérifier que le username ne contient que des caractères valides
-    if not re.match(r'^[a-zA-Z0-9_-]{3,30}$', username):
+    unique_id = unique_id.strip().upper()
+    # L'ID unique est de 12 caractères hexadécimaux
+    if not re.match(r'^[A-F0-9]{12}$', unique_id):
         return None
-    return username
+    return unique_id
 
 def sanitize_url(url):
     """Valide que l'URL est sécurisée."""
@@ -146,6 +149,25 @@ def ensure_pending_log():
         with open(PENDING_LOG, "w", encoding="utf-8") as f:
             f.write("")
 
+def check_session_valid():
+    """
+    Vérifie que la session utilisateur est toujours valide.
+    Retourne (True, user_id) si valide, (False, None) sinon.
+    Invalide la session si une autre session a été créée ailleurs.
+    """
+    if 'user_id' not in session:
+        return False, None
+    
+    user_id = session['user_id']
+    session_token = session.get('session_token')
+    
+    if not auth.validate_session(user_id, session_token):
+        session.pop('user_id', None)
+        session.pop('session_token', None)
+        return False, None
+    
+    return True, user_id
+
 # === Routes d'auth (inscription / connexion / logout) ===
 @app.route('/register', methods=['GET', 'POST'])
 def register():
@@ -156,40 +178,7 @@ def register():
         return redirect(url_for('login'))
 
     if request.method == 'POST':
-        username = request.form.get('username', '').strip()
-        password = request.form.get('password', '')
-        email = request.form.get('email', '').strip()
         telegram_id = request.form.get('telegram_id', '').strip()
-        
-        # SÉCURITÉ : Validation et sanitisation des entrées
-        username = sanitize_username(username)
-        if not username:
-            flash("Nom d'utilisateur invalide. Utilisez 3-30 caractères alphanumériques.", "danger")
-            return redirect(url_for('register'))
-        
-        if not password or len(password) < 8:
-            flash("Mot de passe requis (minimum 8 caractères).", "danger")
-            return redirect(url_for('register'))
-        
-        # Validation force du mot de passe
-        if not re.search(r'[A-Z]', password):
-            flash("Mot de passe doit contenir au moins une majuscule.", "danger")
-            return redirect(url_for('register'))
-        if not re.search(r'[a-z]', password):
-            flash("Mot de passe doit contenir au moins une minuscule.", "danger")
-            return redirect(url_for('register'))
-        if not re.search(r'[0-9]', password):
-            flash("Mot de passe doit contenir au moins un chiffre.", "danger")
-            return redirect(url_for('register'))
-        
-        # Validation email (required now)
-        if not email:
-            flash("L'adresse email est requise.", "danger")
-            return redirect(url_for('register'))
-        
-        if not email_utils.is_valid_email(email):
-            flash("Adresse email invalide.", "danger")
-            return redirect(url_for('register'))
         
         # Validation Telegram ID si fourni
         if telegram_id:
@@ -199,27 +188,28 @@ def register():
                 return redirect(url_for('register'))
         
         with auth_lock:
-            ok, reason = auth.create_user(username, password, ip, telegram_id or None, email)
+            ok, result = auth.create_user(ip, telegram_id or None)
             if not ok:
-                flash(reason, "danger")
+                flash(result, "danger")
                 return redirect(url_for('register'))
+            
+            unique_id = result
             # initialise données user si nécessaire
-            get_user_data(username)
+            get_user_data(unique_id)
         
-        # Send OTP email
-        otp = email_utils.generate_otp()
-        email_utils.store_otp(email, otp)
-        ok, msg = email_utils.send_otp_email(email, otp)
-        
-        if not ok:
-            flash(f"Compte créé mais erreur d'envoi d'email: {msg}. Contactez l'administrateur.", "warning")
+        # Afficher l'ID unique à l'utilisateur
+        flash(f"Compte créé avec succès ! Votre ID unique est : {unique_id}", "success")
+        flash("⚠️ IMPORTANT : Notez bien cet ID, c'est votre seul moyen de connexion !", "warning")
+        # On connecte directement l'utilisateur
+        ok, session_token = auth.authenticate_user(unique_id, ip)
+        if ok:
+            session.permanent = True  # Session persiste 30 jours
+            session['user_id'] = unique_id
+            session['session_token'] = session_token
+            return redirect(url_for('home'))
+        else:
+            # Session non créée mais compte créé - rediriger vers login
             return redirect(url_for('login'))
-        
-        # Store email in session for verification
-        session['pending_verification'] = username
-        session['pending_email'] = email
-        flash("Compte créé. Vérifiez votre email pour le code de vérification.", "success")
-        return redirect(url_for('verify'))
     return render_template("register.html")
 
 @app.route('/login', methods=['GET', 'POST'])
@@ -234,94 +224,106 @@ def login():
             flash("Trop de tentatives de connexion. Réessaie dans un moment.", "danger")
             return redirect(url_for('login'))
 
-        username = request.form.get('username', '').strip()
-        password = request.form.get('password', '')
+        unique_id = request.form.get('unique_id', '').strip()
         
         # SÉCURITÉ : Validation des entrées
-        username = sanitize_username(username)
-        if not username or not password:
-            flash("Champs invalides.", "danger")
+        unique_id = sanitize_unique_id(unique_id)
+        if not unique_id:
+            flash("ID invalide. L'ID doit être composé de 12 caractères.", "danger")
             return redirect(url_for('login'))
 
         with auth_lock:
-            ok, reason = auth.authenticate_user(username, password)
+            ok, result = auth.authenticate_user(unique_id, ip)
             # record attempt for IP based login-throttling regardless of ok
             record_login_attempt(ip)
             if ok:
-                session['user_id'] = username
+                session.permanent = True  # Session persiste 30 jours
+                session['user_id'] = unique_id
+                session['session_token'] = result
                 flash("Connecté avec succès.", "success")
                 return redirect(url_for('home'))
             else:
-                flash(reason, "danger")
+                auth.record_failed_attempt(unique_id, ip)
+                flash(result, "danger")
                 return redirect(url_for('login'))
     return render_template("login.html")
 
+@app.route('/recover', methods=['GET', 'POST'])
+def recover():
+    """Récupération de compte si l'utilisateur a oublié son ID."""
+    ip = get_client_ip()
+    if too_many_requests(ip):
+        flash("Trop de requêtes depuis ton IP, réessaie plus tard.", "danger")
+        return redirect(url_for('login'))
+
+    if request.method == 'POST':
+        telegram_id = request.form.get('telegram_id', '').strip()
+        use_ip = request.form.get('use_ip', '') == 'on'
+        
+        with auth_lock:
+            if telegram_id:
+                # Récupération par ID Telegram
+                telegram_id = sanitize_telegram_id(telegram_id)
+                if not telegram_id:
+                    flash("ID Telegram invalide.", "danger")
+                    return redirect(url_for('recover'))
+                
+                ok, result, session_token = auth.recover_account_by_telegram(telegram_id, ip)
+                if ok:
+                    session.permanent = True
+                    session['user_id'] = result
+                    session['session_token'] = session_token
+                    flash(f"Compte récupéré ! Votre ID est : {result}", "success")
+                    flash("⚠️ Notez bien cet ID pour ne plus l'oublier !", "warning")
+                    return redirect(url_for('home'))
+                else:
+                    flash(result, "danger")
+                    return redirect(url_for('recover'))
+            
+            elif use_ip:
+                # Récupération par IP
+                ok, result, session_token = auth.recover_account_by_ip(ip)
+                if ok:
+                    session.permanent = True
+                    session['user_id'] = result
+                    session['session_token'] = session_token
+                    flash(f"Compte récupéré ! Votre ID est : {result}", "success")
+                    flash("⚠️ Notez bien cet ID pour ne plus l'oublier !", "warning")
+                    return redirect(url_for('home'))
+                else:
+                    flash(result, "danger")
+                    return redirect(url_for('recover'))
+            else:
+                flash("Veuillez fournir votre ID Telegram ou cocher 'Utiliser mon IP'.", "danger")
+                return redirect(url_for('recover'))
+    
+    return render_template("recover.html")
+
 @app.route('/logout')
 def logout():
+    user_id = session.get('user_id')
+    if user_id:
+        auth.invalidate_session(user_id)
     session.pop('user_id', None)
-    session.pop('pending_verification', None)
-    session.pop('pending_email', None)
+    session.pop('session_token', None)
     return redirect(url_for('login'))
-
-@app.route('/verify', methods=['GET', 'POST'])
-def verify():
-    """Email verification with OTP."""
-    if 'pending_verification' not in session or 'pending_email' not in session:
-        flash("Session de vérification expirée. Veuillez vous réinscrire.", "danger")
-        return redirect(url_for('register'))
-    
-    username = session['pending_verification']
-    email = session['pending_email']
-    
-    if request.method == 'POST':
-        otp = request.form.get('otp', '').strip()
-        
-        if not otp:
-            flash("Veuillez entrer le code de vérification.", "danger")
-            return render_template("verify.html", email=email)
-        
-        ok, reason = email_utils.verify_otp(email, otp)
-        
-        if not ok:
-            flash(reason, "danger")
-            return render_template("verify.html", email=email)
-        
-        # Mark email as verified
-        auth.verify_user_email(username)
-        
-        # Clear session
-        session.pop('pending_verification', None)
-        session.pop('pending_email', None)
-        
-        flash("Email vérifié avec succès ! Vous pouvez maintenant vous connecter.", "success")
-        return redirect(url_for('login'))
-    
-    return render_template("verify.html", email=email)
-
-@app.route('/resend-otp', methods=['POST'])
-def resend_otp():
-    """Resend OTP code."""
-    if 'pending_verification' not in session or 'pending_email' not in session:
-        return jsonify({"success": False, "message": "Session expirée"}), 400
-    
-    email = session['pending_email']
-    
-    # Generate and send new OTP
-    otp = email_utils.generate_otp()
-    email_utils.store_otp(email, otp)
-    ok, msg = email_utils.send_otp_email(email, otp)
-    
-    if not ok:
-        return jsonify({"success": False, "message": msg}), 500
-    
-    return jsonify({"success": True, "message": "Code renvoyé"}), 200
 
 # === Dashboard ===
 @app.route('/')
 def home():
     if 'user_id' not in session:
         return redirect(url_for('login'))
+    
     user_id = session['user_id']
+    session_token = session.get('session_token')
+    
+    # Vérifier que la session est toujours valide (une seule session active)
+    if not auth.validate_session(user_id, session_token):
+        session.pop('user_id', None)
+        session.pop('session_token', None)
+        flash("Votre session a été invalidée (connexion depuis un autre appareil).", "warning")
+        return redirect(url_for('login'))
+    
     user_info = get_user_data(user_id)
     return render_template("dashboard.html", user_id=user_id, user=user_info)
 
@@ -349,10 +351,10 @@ def offline():
 @app.route('/api/notifications')
 def get_notifications():
     """API endpoint pour récupérer le nombre de notifications."""
-    if 'user_id' not in session:
+    valid, user_id = check_session_valid()
+    if not valid:
         return jsonify({"count": 0, "notifications": []}), 200
     
-    user_id = session['user_id']
     notifications = []
     
     # Lire les notifications des achats en attente pour cet utilisateur
@@ -397,10 +399,9 @@ def get_notifications():
 @app.route('/api/notifications/clear', methods=['POST'])
 def clear_notifications():
     """API endpoint pour supprimer toutes les notifications."""
-    if 'user_id' not in session:
+    valid, user_id = check_session_valid()
+    if not valid:
         return jsonify({"success": False, "message": "Non authentifié"}), 401
-    
-    user_id = session['user_id']
     
     # Clear web notifications
     clear_user_web_notifications(user_id)
@@ -434,10 +435,11 @@ def clear_notifications():
 @app.route('/settings')
 def settings():
     """User settings page."""
-    if 'user_id' not in session:
+    valid, user_id = check_session_valid()
+    if not valid:
+        flash("Votre session a été invalidée (connexion depuis un autre appareil).", "warning")
         return redirect(url_for('login'))
     
-    user_id = session['user_id']
     user_info = get_user_data(user_id)
     
     return render_template("settings.html", user_id=user_id, user=user_info)
@@ -446,7 +448,8 @@ def settings():
 @app.route('/api/settings/theme', methods=['POST'])
 def update_theme():
     """API endpoint pour sauvegarder les préférences de thème."""
-    if 'user_id' not in session:
+    valid, user_id = check_session_valid()
+    if not valid:
         return jsonify({"success": False, "message": "Non authentifié"}), 401
     
     # Store theme preference in session (could be stored in user data later)
@@ -460,13 +463,14 @@ def update_theme():
 # === Téléchargement ===
 @app.route('/download', methods=['GET', 'POST'])
 def download_page():
-    if 'user_id' not in session:
+    valid, user_id = check_session_valid()
+    if not valid:
+        flash("Votre session a été invalidée (connexion depuis un autre appareil).", "warning")
         return redirect(url_for('login'))
 
     msg = None
     download_info = None
     if request.method == 'POST':
-        user_id = session['user_id']
         url = request.form.get('url', '').strip()
         mode = request.form.get('mode', 'mp3')
         
@@ -534,11 +538,12 @@ def download_page():
 # === Boutique web ===
 @app.route('/shop', methods=['GET', 'POST'])
 def shop():
-    if 'user_id' not in session:
+    valid, user_id = check_session_valid()
+    if not valid:
+        flash("Votre session a été invalidée (connexion depuis un autre appareil).", "warning")
         return redirect(url_for('login'))
 
     if request.method == 'POST':
-        user_id = session['user_id']
         pack = request.form.get('pack', '').strip()
         
         # SÉCURITÉ : Validation stricte du pack

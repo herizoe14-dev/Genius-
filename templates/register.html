@@ -2,47 +2,70 @@
 {% block content %}
 <div class="card auth-form">
   <div class="auth-header">
-    <span class="auth-icon">✨</span>
+    <div class="auth-icon-wrapper accent">
+      <span class="auth-icon">✨</span>
+    </div>
     <h2 class="auth-title">Inscription</h2>
     <p class="muted">Rejoignez Genius Bot dès maintenant</p>
   </div>
   
   <form method="post">
     <div class="form-group">
-      <label class="form-label">Pseudonyme</label>
-      <input type="text" name="username" placeholder="Choisissez un pseudonyme unique" required>
-      <p class="form-hint">3-30 caractères alphanumériques</p>
-    </div>
-    
-    <div class="form-group">
-      <label class="form-label">Adresse Email</label>
-      <input type="email" name="email" placeholder="votre.email@exemple.com" required>
-      <p class="form-hint">Pour la vérification et les notifications</p>
-    </div>
-    
-    <div class="form-group">
-      <label class="form-label">Mot de passe</label>
-      <input type="password" name="password" placeholder="Créez un mot de passe sécurisé" required>
-      <p class="form-hint">Min. 8 caractères avec majuscule, minuscule et chiffre</p>
-    </div>
-    
-    <div class="form-group">
-      <label class="form-label">ID Telegram <span style="opacity:0.6;">(optionnel)</span></label>
+      <label class="form-label">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-right: 6px;">
+          <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path>
+        </svg>
+        ID Telegram <span class="optional-label">(optionnel)</span>
+      </label>
       <input type="text" name="telegram_id" placeholder="Votre ID Telegram pour les notifications">
       <p class="form-hint">Recevez des notifications via Telegram</p>
     </div>
     
-    <button type="submit">Créer mon compte</button>
+    <button type="submit" class="btn-full">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+        <circle cx="8.5" cy="7" r="4"></circle>
+        <line x1="20" y1="8" x2="20" y2="14"></line>
+        <line x1="23" y1="11" x2="17" y2="11"></line>
+      </svg>
+      <span>Créer mon compte</span>
+    </button>
   </form>
+  
+  <div class="info-card">
+    <div class="info-card-header">
+      <span class="info-card-icon">🔑</span>
+      <strong>Comment ça marche ?</strong>
+    </div>
+    <p>Un <strong>ID unique</strong> vous sera attribué automatiquement. C'est votre seule clé de connexion !</p>
+    <div class="info-card-note">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+        <line x1="12" y1="9" x2="12" y2="13"></line>
+        <line x1="12" y1="17" x2="12.01" y2="17"></line>
+      </svg>
+      <span>Notez bien votre ID ! Si vous l'oubliez, vous pourrez le récupérer après 24h via votre IP ou ID Telegram.</span>
+    </div>
+  </div>
   
   <div class="divider">ou</div>
   
-  <p class="muted" style="text-align:center;">
-    Déjà inscrit ? <a href="{{ url_for('login') }}" style="color:var(--accent);font-weight:600;">Se connecter</a>
-  </p>
+  <a href="{{ url_for('login') }}" class="btn-secondary btn-full">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"></path>
+      <polyline points="10 17 15 12 10 7"></polyline>
+      <line x1="15" y1="12" x2="3" y2="12"></line>
+    </svg>
+    <span>Déjà inscrit ? Se connecter</span>
+  </a>
   
-  <p class="muted" style="text-align:center;font-size:0.85rem;margin-top:16px;opacity:0.7;">
-    ⚠️ 1 compte par IP sera autorisé. Si vous êtes derrière un réseau partagé, contactez l'admin.
+  <p class="auth-info warning">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+      <line x1="12" y1="9" x2="12" y2="13"></line>
+      <line x1="12" y1="17" x2="12.01" y2="17"></line>
+    </svg>
+    <span>1 compte par IP sera autorisé. Si vous êtes derrière un réseau partagé, contactez l'admin.</span>
   </p>
 </div>
 {% endblock %}

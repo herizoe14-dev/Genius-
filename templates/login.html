@@ -2,29 +2,60 @@
 {% block content %}
 <div class="card auth-form">
   <div class="auth-header">
-    <span class="auth-icon">🔐</span>
+    <div class="auth-icon-wrapper">
+      <span class="auth-icon">🔐</span>
+    </div>
     <h2 class="auth-title">Connexion</h2>
     <p class="muted">Accédez à votre espace personnel</p>
   </div>
   
   <form method="post">
     <div class="form-group">
-      <label class="form-label">Pseudonyme</label>
-      <input type="text" name="username" placeholder="Entrez votre pseudonyme" required>
+      <label class="form-label">Votre ID Unique</label>
+      <input type="text" name="unique_id" class="input-uppercase" placeholder="Entrez votre ID (12 caractères)" required maxlength="12">
+      <p class="form-hint">L'ID unique qui vous a été attribué lors de l'inscription</p>
     </div>
     
-    <div class="form-group">
-      <label class="form-label">Mot de passe</label>
-      <input type="password" name="password" placeholder="Entrez votre mot de passe" required>
-    </div>
-    
-    <button type="submit">Se connecter</button>
+    <button type="submit" class="btn-full">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"></path>
+        <polyline points="10 17 15 12 10 7"></polyline>
+        <line x1="15" y1="12" x2="3" y2="12"></line>
+      </svg>
+      <span>Se connecter</span>
+    </button>
   </form>
+  
+  <div class="auth-links">
+    <a href="{{ url_for('recover') }}" class="auth-link recover-link">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="23 4 23 10 17 10"></polyline>
+        <polyline points="1 20 1 14 7 14"></polyline>
+        <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+      </svg>
+      <span>J'ai oublié mon ID</span>
+    </a>
+  </div>
   
   <div class="divider">ou</div>
   
-  <p class="muted" style="text-align:center;">
-    Pas encore de compte ? <a href="{{ url_for('register') }}" style="color:var(--accent);font-weight:600;">Créer un compte</a>
+  <a href="{{ url_for('register') }}" class="btn-secondary btn-full">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+      <circle cx="8.5" cy="7" r="4"></circle>
+      <line x1="20" y1="8" x2="20" y2="14"></line>
+      <line x1="23" y1="11" x2="17" y2="11"></line>
+    </svg>
+    <span>Créer un compte</span>
+  </a>
+  
+  <p class="auth-info">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="10"></circle>
+      <line x1="12" y1="16" x2="12" y2="12"></line>
+      <line x1="12" y1="8" x2="12.01" y2="8"></line>
+    </svg>
+    <span>Une seule session active est autorisée. La connexion ici déconnectera les autres appareils.</span>
   </p>
 </div>
 {% endblock %}
