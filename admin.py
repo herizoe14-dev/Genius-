@@ -18,12 +18,8 @@ bot_user = telebot.TeleBot(config.TOKEN_BOT_USER)
 
 # SÉCURITÉ : Log des actions admin pour audit
 ADMIN_LOG = "admin_actions.log"
-MIN_USERNAME_LENGTH = 3
-MAX_USERNAME_LENGTH = 30
 TELEGRAM_ID_PATTERN = re.compile(r'^[0-9]+$')  # Telegram numeric IDs
-WEB_USERNAME_PATTERN = re.compile(
-    r'^[a-zA-Z0-9_-]{%d,%d}$' % (MIN_USERNAME_LENGTH, MAX_USERNAME_LENGTH)
-)  # Web usernames
+UNIQUE_ID_PATTERN = re.compile(r'^[A-F0-9]{12}$')  # Unique IDs (12 hex chars)
 
 def log_admin_action(action, user_id, details=""):
     """Enregistre toutes les actions admin pour audit."""
@@ -70,11 +66,11 @@ def get_valid_telegram_id(telegram_id):
     return telegram_id if is_valid_telegram_id(telegram_id) else None
 
 def is_valid_user_identifier(user_id):
-    """Validate a user identifier (Telegram ID or web username)."""
+    """Validate a user identifier (Telegram ID or unique ID)."""
     user_id = normalize_user_id(user_id)
     if not user_id:
         return False
-    return TELEGRAM_ID_PATTERN.match(user_id) or WEB_USERNAME_PATTERN.match(user_id)
+    return TELEGRAM_ID_PATTERN.match(user_id) or UNIQUE_ID_PATTERN.match(user_id.upper())
 
 def resolve_telegram_id(user_id):
     """Resolve Telegram ID from a web username or direct Telegram ID."""
