@@ -203,7 +203,10 @@ def register():
         if ok:
             session['user_id'] = unique_id
             session['session_token'] = session_token
-        return redirect(url_for('home'))
+            return redirect(url_for('home'))
+        else:
+            # Session non créée mais compte créé - rediriger vers login
+            return redirect(url_for('login'))
     return render_template("register.html")
 
 @app.route('/login', methods=['GET', 'POST'])

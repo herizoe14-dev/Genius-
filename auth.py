@@ -13,8 +13,8 @@ LOCK_SECONDS = 5 * 60     # durée du lock en secondes (ici 5 minutes)
 SUSPICIOUS_LOG = "suspicious_activity.log"
 
 def generate_unique_id():
-    """Génère un ID unique de 12 caractères alphanumériques."""
-    return secrets.token_hex(6).upper()  # 12 caractères hex
+    """Génère un ID unique de 12 caractères hexadécimaux (6 bytes = 12 hex chars)."""
+    return secrets.token_hex(6).upper()  # 6 bytes = 12 caractères hex
 
 def log_suspicious_activity(event_type, username, ip, details=""):
     """Enregistre les activités suspectes pour audit."""
@@ -80,8 +80,13 @@ def create_user(ip, telegram_id=None):
     unique_id = generate_unique_id()
     
     # S'assurer que l'ID est vraiment unique (très improbable mais on vérifie)
+    max_attempts = 10
+    attempts = 0
     while unique_id in data.get("users", {}):
         unique_id = generate_unique_id()
+        attempts += 1
+        if attempts >= max_attempts:
+            return False, "Erreur serveur: impossible de générer un ID unique."
     
     now = datetime.utcnow().isoformat() + "Z"
     data.setdefault("users", {})[unique_id] = {
@@ -175,7 +180,11 @@ def link_telegram_id(unique_id, telegram_id):
     data = load_auth_data()
     if unique_id not in data.get("users", {}):
         return False
-    data["users"][unique_id]["telegram_id"] = str(telegram_id)
+    # Valider le format telegram_id (doit être numérique)
+    telegram_id = str(telegram_id).strip()
+    if not telegram_id or not telegram_id.isdigit():
+        return False
+    data["users"][unique_id]["telegram_id"] = telegram_id
     save_auth_data(data)
     return True
 
