@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="card auth-form">
+  <div class="auth-header">
+    <span class="auth-icon">🔄</span>
+    <h2 class="auth-title">Récupération de compte</h2>
+    <p class="muted">Récupérez votre ID unique si vous l'avez oublié</p>
+  </div>
+  
+  <form method="post">
+    <div class="form-group">
+      <label class="form-label">ID Telegram</label>
+      <input type="text" name="telegram_id" placeholder="Votre ID Telegram (si lié au compte)">
+      <p class="form-hint">L'ID Telegram que vous avez fourni lors de l'inscription</p>
+    </div>
+    
+    <div class="divider">ou</div>
+    
+    <div class="form-group">
+      <label class="checkbox-label">
+        <input type="checkbox" name="use_ip">
+        <span>Utiliser mon adresse IP actuelle</span>
+      </label>
+      <p class="form-hint">Fonctionne si vous vous connectez depuis la même IP que lors de l'inscription</p>
+    </div>
+    
+    <button type="submit">Récupérer mon compte</button>
+  </form>
+  
+  <div class="info-box" style="margin-top:20px;padding:16px;background:rgba(255,193,7,0.1);border-radius:10px;border-left:3px solid #ffc107;">
+    <p style="margin:0;font-size:0.9rem;">
+      <strong>⏰ Délai de récupération</strong><br>
+      La récupération de compte n'est disponible qu'<strong>après 24 heures</strong> suivant la création du compte. 
+      Ceci est une mesure de sécurité.
+    </p>
+  </div>
+  
+  <div class="divider">ou</div>
+  
+  <p class="muted" style="text-align:center;">
+    Vous connaissez votre ID ? <a href="{{ url_for('login') }}" style="color:var(--accent);font-weight:600;">Se connecter</a>
+  </p>
+  
+  <p class="muted" style="text-align:center;margin-top:8px;">
+    Pas de compte ? <a href="{{ url_for('register') }}" style="color:var(--accent);font-weight:600;">Créer un compte</a>
+  </p>
+</div>
+{% endblock %}

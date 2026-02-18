@@ -34,6 +34,35 @@
     </button>
   </form>
   
+  <!-- Progress indicator (hidden by default) -->
+  <div id="progressContainer" class="download-progress" style="display:none;">
+    <div class="progress-header">
+      <span class="progress-icon">⏳</span>
+      <span class="progress-text" id="progressText">Initialisation...</span>
+    </div>
+    <div class="progress-bar-container">
+      <div class="progress-bar" id="progressBar" style="width: 0%"></div>
+    </div>
+    <div class="progress-stages">
+      <div class="progress-stage active" id="stage1">
+        <span class="stage-icon">🔍</span>
+        <span class="stage-label">Analyse</span>
+      </div>
+      <div class="progress-stage" id="stage2">
+        <span class="stage-icon">📥</span>
+        <span class="stage-label">Téléchargement</span>
+      </div>
+      <div class="progress-stage" id="stage3">
+        <span class="stage-icon">🔄</span>
+        <span class="stage-label">Conversion</span>
+      </div>
+      <div class="progress-stage" id="stage4">
+        <span class="stage-icon">✅</span>
+        <span class="stage-label">Terminé</span>
+      </div>
+    </div>
+  </div>
+  
   {% if msg %}<p class="error">{{ msg }}</p>{% endif %}
   
   {% if download_info %}
@@ -83,6 +112,9 @@ document.addEventListener('DOMContentLoaded', function() {
   const downloadOptions = document.querySelectorAll('.download-option');
   const form = document.getElementById('downloadForm');
   const downloadBtn = document.getElementById('downloadBtn');
+  const progressContainer = document.getElementById('progressContainer');
+  const progressBar = document.getElementById('progressBar');
+  const progressText = document.getElementById('progressText');
   
   // Format option selection
   downloadOptions.forEach(function(option) {
@@ -92,11 +124,130 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   });
   
-  // Form submission loading state
+  // Progress stages
+  const stages = [
+    { id: 'stage1', text: 'Analyse de la vidéo...', percent: 10 },
+    { id: 'stage2', text: 'Téléchargement en cours...', percent: 40 },
+    { id: 'stage3', text: 'Conversion du fichier...', percent: 75 },
+    { id: 'stage4', text: 'Préparation du fichier...', percent: 95 }
+  ];
+  
+  let currentStage = 0;
+  let progressInterval;
+  
+  function updateProgress() {
+    if (currentStage < stages.length) {
+      const stage = stages[currentStage];
+      document.getElementById(stage.id).classList.add('active');
+      progressText.textContent = stage.text;
+      progressBar.style.width = stage.percent + '%';
+      currentStage++;
+    }
+  }
+  
+  // Form submission loading state with progress
   form.addEventListener('submit', function() {
     downloadBtn.disabled = true;
-    downloadBtn.textContent = '⏳ Téléchargement en cours...';
+    downloadBtn.textContent = '⏳ Traitement en cours...';
+    progressContainer.style.display = 'block';
+    
+    // Reset stages
+    document.querySelectorAll('.progress-stage').forEach(s => s.classList.remove('active'));
+    currentStage = 0;
+    
+    // Start progress animation
+    updateProgress();
+    progressInterval = setInterval(function() {
+      if (currentStage < stages.length) {
+        updateProgress();
+      }
+    }, 2500);
   });
 });
 </script>
+
+<style>
+.download-progress {
+  margin: 20px 0;
+  padding: 20px;
+  background: var(--surface);
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+}
+
+.progress-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 15px;
+}
+
+.progress-icon {
+  font-size: 1.5rem;
+  animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.progress-text {
+  font-weight: 600;
+  color: var(--text);
+}
+
+.progress-bar-container {
+  height: 8px;
+  background: var(--border);
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 20px;
+}
+
+.progress-bar {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent), #00ff9b);
+  border-radius: 4px;
+  transition: width 0.5s ease;
+}
+
+.progress-stages {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.progress-stage {
+  flex: 1;
+  text-align: center;
+  padding: 10px 5px;
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+  opacity: 0.5;
+  transition: all 0.3s ease;
+}
+
+.progress-stage.active {
+  opacity: 1;
+  background: rgba(0, 209, 122, 0.1);
+  border: 1px solid var(--accent);
+}
+
+.stage-icon {
+  display: block;
+  font-size: 1.25rem;
+  margin-bottom: 5px;
+}
+
+.stage-label {
+  font-size: 0.75rem;
+  color: var(--muted-text);
+}
+
+.progress-stage.active .stage-label {
+  color: var(--accent);
+  font-weight: 600;
+}
+</style>
 {% endblock %}

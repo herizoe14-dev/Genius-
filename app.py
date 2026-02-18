@@ -12,6 +12,7 @@ import os
 import json
 import time
 import re
+from datetime import timedelta
 from threading import Lock
 from flask import Flask, render_template, request, redirect, session, send_file, url_for, flash, make_response
 from downloader import download_content
@@ -20,7 +21,7 @@ import telebot
 import config
 import auth
 from admin import resolve_telegram_id, send_telegram_message
-from web_notifications import get_user_web_notifications, clear_user_web_notifications, delete_single_notification
+from web_notifications import get_user_web_notifications, clear_user_web_notifications, delete_single_notification, add_web_notification
 from flask import jsonify
 
 # === Configuration Flask ===
@@ -32,7 +33,8 @@ app.secret_key = os.getenv("FLASK_SECRET") or os.urandom(32).hex()
 app.config.update(
     SESSION_COOKIE_SECURE=True,
     SESSION_COOKIE_HTTPONLY=True,
-    SESSION_COOKIE_SAMESITE='Lax'
+    SESSION_COOKIE_SAMESITE='Lax',
+    PERMANENT_SESSION_LIFETIME=timedelta(days=30)  # Sessions valides 30 jours
 )
 
 # Thread-safety pour auth et autres écritures
@@ -201,6 +203,7 @@ def register():
         # On connecte directement l'utilisateur
         ok, session_token = auth.authenticate_user(unique_id, ip)
         if ok:
+            session.permanent = True  # Session persiste 30 jours
             session['user_id'] = unique_id
             session['session_token'] = session_token
             return redirect(url_for('home'))
@@ -234,6 +237,7 @@ def login():
             # record attempt for IP based login-throttling regardless of ok
             record_login_attempt(ip)
             if ok:
+                session.permanent = True  # Session persiste 30 jours
                 session['user_id'] = unique_id
                 session['session_token'] = result
                 flash("Connecté avec succès.", "success")
@@ -243,6 +247,57 @@ def login():
                 flash(result, "danger")
                 return redirect(url_for('login'))
     return render_template("login.html")
+
+@app.route('/recover', methods=['GET', 'POST'])
+def recover():
+    """Récupération de compte si l'utilisateur a oublié son ID."""
+    ip = get_client_ip()
+    if too_many_requests(ip):
+        flash("Trop de requêtes depuis ton IP, réessaie plus tard.", "danger")
+        return redirect(url_for('login'))
+
+    if request.method == 'POST':
+        telegram_id = request.form.get('telegram_id', '').strip()
+        use_ip = request.form.get('use_ip', '') == 'on'
+        
+        with auth_lock:
+            if telegram_id:
+                # Récupération par ID Telegram
+                telegram_id = sanitize_telegram_id(telegram_id)
+                if not telegram_id:
+                    flash("ID Telegram invalide.", "danger")
+                    return redirect(url_for('recover'))
+                
+                ok, result, session_token = auth.recover_account_by_telegram(telegram_id, ip)
+                if ok:
+                    session.permanent = True
+                    session['user_id'] = result
+                    session['session_token'] = session_token
+                    flash(f"Compte récupéré ! Votre ID est : {result}", "success")
+                    flash("⚠️ Notez bien cet ID pour ne plus l'oublier !", "warning")
+                    return redirect(url_for('home'))
+                else:
+                    flash(result, "danger")
+                    return redirect(url_for('recover'))
+            
+            elif use_ip:
+                # Récupération par IP
+                ok, result, session_token = auth.recover_account_by_ip(ip)
+                if ok:
+                    session.permanent = True
+                    session['user_id'] = result
+                    session['session_token'] = session_token
+                    flash(f"Compte récupéré ! Votre ID est : {result}", "success")
+                    flash("⚠️ Notez bien cet ID pour ne plus l'oublier !", "warning")
+                    return redirect(url_for('home'))
+                else:
+                    flash(result, "danger")
+                    return redirect(url_for('recover'))
+            else:
+                flash("Veuillez fournir votre ID Telegram ou cocher 'Utiliser mon IP'.", "danger")
+                return redirect(url_for('recover'))
+    
+    return render_template("recover.html")
 
 @app.route('/logout')
 def logout():

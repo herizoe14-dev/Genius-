@@ -8,6 +8,7 @@ AUTH_FILE = "auth_data.json"
 # Politique de sécurité
 MAX_FAILED = 5            # nombre de tentatives avant lock
 LOCK_SECONDS = 5 * 60     # durée du lock en secondes (ici 5 minutes)
+RECOVERY_COOLDOWN_HOURS = 24  # Délai minimum avant récupération de compte
 
 # Nouveau : Logging des tentatives suspectes
 SUSPICIOUS_LOG = "suspicious_activity.log"
@@ -203,3 +204,147 @@ def get_user_telegram_id(unique_id):
     if user:
         return user.get("telegram_id")
     return None
+
+
+def find_user_by_telegram_id(telegram_id):
+    """
+    Trouve un utilisateur par son ID Telegram.
+    Retourne (unique_id, user_data) si trouvé, (None, None) sinon.
+    """
+    telegram_id = str(telegram_id).strip()
+    if not telegram_id or not telegram_id.isdigit():
+        return None, None
+    
+    data = load_auth_data()
+    for unique_id, user_data in data.get("users", {}).items():
+        if user_data.get("telegram_id") == telegram_id:
+            return unique_id, user_data
+    return None, None
+
+
+def find_user_by_ip(ip):
+    """
+    Trouve un utilisateur par son IP de création.
+    Retourne (unique_id, user_data) si trouvé, (None, None) sinon.
+    """
+    data = load_auth_data()
+    
+    # D'abord vérifier dans ip_map (IP actuelle mappée)
+    mapped_id = data.get("ip_map", {}).get(ip)
+    if mapped_id and mapped_id in data.get("users", {}):
+        return mapped_id, data["users"][mapped_id]
+    
+    # Sinon chercher par IP de création
+    for unique_id, user_data in data.get("users", {}).items():
+        if user_data.get("creation_ip") == ip:
+            return unique_id, user_data
+    
+    return None, None
+
+
+def can_recover_account(user_data):
+    """
+    Vérifie si le compte peut être récupéré (après 24h de création).
+    Retourne (True, "") si ok, (False, "raison") sinon.
+    """
+    created_at = user_data.get("created_at", "")
+    if not created_at:
+        return True, ""  # Ancien compte sans date, autoriser
+    
+    try:
+        # Parse the ISO timestamp
+        creation_time = datetime.fromisoformat(created_at.replace("Z", "+00:00"))
+        now = datetime.now(creation_time.tzinfo) if creation_time.tzinfo else datetime.utcnow()
+        
+        time_since_creation = now - creation_time.replace(tzinfo=None)
+        if time_since_creation < timedelta(hours=RECOVERY_COOLDOWN_HOURS):
+            remaining = timedelta(hours=RECOVERY_COOLDOWN_HOURS) - time_since_creation
+            hours = int(remaining.total_seconds() // 3600)
+            minutes = int((remaining.total_seconds() % 3600) // 60)
+            return False, f"La récupération de compte n'est disponible qu'après 24h. Réessayez dans {hours}h{minutes}min."
+    except (ValueError, TypeError):
+        pass  # Si erreur de parsing, autoriser
+    
+    return True, ""
+
+
+def recover_account_by_telegram(telegram_id, ip):
+    """
+    Récupère un compte par ID Telegram.
+    Retourne (True, unique_id, session_token) ou (False, error_msg, None).
+    """
+    unique_id, user_data = find_user_by_telegram_id(telegram_id)
+    if not unique_id:
+        return False, "Aucun compte trouvé avec cet ID Telegram.", None
+    
+    can_recover, reason = can_recover_account(user_data)
+    if not can_recover:
+        return False, reason, None
+    
+    # Authentifier et créer une nouvelle session
+    data = load_auth_data()
+    now = current_timestamp()
+    
+    # Générer un nouveau token de session
+    new_session_token = secrets.token_hex(16)
+    
+    # Enregistrer cette session comme la session active
+    data.setdefault("active_sessions", {})[unique_id] = {
+        "token": new_session_token,
+        "ip": ip,
+        "created_at": now
+    }
+    
+    # Mettre à jour la dernière IP et réinitialiser les compteurs
+    data["users"][unique_id]["last_ip"] = ip
+    data["users"][unique_id]["failed_attempts"] = 0
+    data["users"][unique_id]["locked_until"] = 0
+    
+    # Mettre à jour le mapping IP
+    data.setdefault("ip_map", {})[ip] = unique_id
+    
+    save_auth_data(data)
+    log_suspicious_activity("account_recovered", unique_id, ip, f"Récupération via Telegram ID: {telegram_id}")
+    
+    return True, unique_id, new_session_token
+
+
+def recover_account_by_ip(ip):
+    """
+    Récupère un compte par IP (IP de création originale).
+    Retourne (True, unique_id, session_token) ou (False, error_msg, None).
+    """
+    unique_id, user_data = find_user_by_ip(ip)
+    if not unique_id:
+        return False, "Aucun compte trouvé pour cette IP.", None
+    
+    can_recover, reason = can_recover_account(user_data)
+    if not can_recover:
+        return False, reason, None
+    
+    # Authentifier et créer une nouvelle session
+    data = load_auth_data()
+    now = current_timestamp()
+    
+    # Générer un nouveau token de session
+    new_session_token = secrets.token_hex(16)
+    
+    # Enregistrer cette session comme la session active
+    data.setdefault("active_sessions", {})[unique_id] = {
+        "token": new_session_token,
+        "ip": ip,
+        "created_at": now
+    }
+    
+    # Mettre à jour la dernière IP et réinitialiser les compteurs
+    data["users"][unique_id]["last_ip"] = ip
+    data["users"][unique_id]["failed_attempts"] = 0
+    data["users"][unique_id]["locked_until"] = 0
+    
+    # Mettre à jour le mapping IP
+    data.setdefault("ip_map", {})[ip] = unique_id
+    
+    save_auth_data(data)
+    log_suspicious_activity("account_recovered", unique_id, ip, "Récupération via IP")
+    
+    return True, unique_id, new_session_token
