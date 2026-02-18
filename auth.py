@@ -252,11 +252,11 @@ def can_recover_account(user_data):
         return True, ""  # Ancien compte sans date, autoriser
     
     try:
-        # Parse the ISO timestamp
-        creation_time = datetime.fromisoformat(created_at.replace("Z", "+00:00"))
-        now = datetime.now(creation_time.tzinfo) if creation_time.tzinfo else datetime.utcnow()
+        # Parse the ISO timestamp - use naive datetime for simplicity
+        creation_time = datetime.fromisoformat(created_at.replace("Z", "").replace("+00:00", ""))
+        now = datetime.utcnow()
         
-        time_since_creation = now - creation_time.replace(tzinfo=None)
+        time_since_creation = now - creation_time
         if time_since_creation < timedelta(hours=RECOVERY_COOLDOWN_HOURS):
             remaining = timedelta(hours=RECOVERY_COOLDOWN_HOURS) - time_since_creation
             hours = int(remaining.total_seconds() // 3600)
@@ -268,21 +268,12 @@ def can_recover_account(user_data):
     return True, ""
 
 
-def recover_account_by_telegram(telegram_id, ip):
+def _create_session_for_user(data, unique_id, ip):
     """
-    Récupère un compte par ID Telegram.
-    Retourne (True, unique_id, session_token) ou (False, error_msg, None).
+    Crée une nouvelle session pour un utilisateur et met à jour ses données.
+    Retourne le nouveau token de session.
+    Note: data doit être sauvegardé par l'appelant après cette fonction.
     """
-    unique_id, user_data = find_user_by_telegram_id(telegram_id)
-    if not unique_id:
-        return False, "Aucun compte trouvé avec cet ID Telegram.", None
-    
-    can_recover, reason = can_recover_account(user_data)
-    if not can_recover:
-        return False, reason, None
-    
-    # Authentifier et créer une nouvelle session
-    data = load_auth_data()
     now = current_timestamp()
     
     # Générer un nouveau token de session
@@ -303,8 +294,29 @@ def recover_account_by_telegram(telegram_id, ip):
     # Mettre à jour le mapping IP
     data.setdefault("ip_map", {})[ip] = unique_id
     
+    return new_session_token
+
+
+def recover_account_by_telegram(telegram_id, ip):
+    """
+    Récupère un compte par ID Telegram.
+    Retourne (True, unique_id, session_token) ou (False, error_msg, None).
+    """
+    unique_id, user_data = find_user_by_telegram_id(telegram_id)
+    if not unique_id:
+        return False, "Aucun compte trouvé avec cet ID Telegram.", None
+    
+    can_recover, reason = can_recover_account(user_data)
+    if not can_recover:
+        return False, reason, None
+    
+    data = load_auth_data()
+    new_session_token = _create_session_for_user(data, unique_id, ip)
     save_auth_data(data)
-    log_suspicious_activity("account_recovered", unique_id, ip, f"Récupération via Telegram ID: {telegram_id}")
+    
+    # Log avec ID masqué pour la sécurité
+    masked_telegram = telegram_id[:3] + "***" + telegram_id[-2:] if len(telegram_id) > 5 else "***"
+    log_suspicious_activity("account_recovered", unique_id, ip, f"Récupération via Telegram ID: {masked_telegram}")
     
     return True, unique_id, new_session_token
 
@@ -322,29 +334,10 @@ def recover_account_by_ip(ip):
     if not can_recover:
         return False, reason, None
     
-    # Authentifier et créer une nouvelle session
     data = load_auth_data()
-    now = current_timestamp()
-    
-    # Générer un nouveau token de session
-    new_session_token = secrets.token_hex(16)
-    
-    # Enregistrer cette session comme la session active
-    data.setdefault("active_sessions", {})[unique_id] = {
-        "token": new_session_token,
-        "ip": ip,
-        "created_at": now
-    }
-    
-    # Mettre à jour la dernière IP et réinitialiser les compteurs
-    data["users"][unique_id]["last_ip"] = ip
-    data["users"][unique_id]["failed_attempts"] = 0
-    data["users"][unique_id]["locked_until"] = 0
-    
-    # Mettre à jour le mapping IP
-    data.setdefault("ip_map", {})[ip] = unique_id
-    
+    new_session_token = _create_session_for_user(data, unique_id, ip)
     save_auth_data(data)
+    
     log_suspicious_activity("account_recovered", unique_id, ip, "Récupération via IP")
     
     return True, unique_id, new_session_token

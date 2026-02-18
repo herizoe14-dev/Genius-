@@ -142,6 +142,9 @@ document.addEventListener('DOMContentLoaded', function() {
       progressText.textContent = stage.text;
       progressBar.style.width = stage.percent + '%';
       currentStage++;
+    } else {
+      // All stages complete, stop the interval
+      clearInterval(progressInterval);
     }
   }
   
