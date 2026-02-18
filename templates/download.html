@@ -1,135 +1,251 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="card">
-  <h2>📥 Téléchargement</h2>
-  <p class="muted">Convertissez vos vidéos YouTube préférées en MP3 ou MP4 de haute qualité.</p>
+<div class="card download-card">
+  <div class="download-header">
+    <div class="download-icon-wrapper">
+      <span class="download-icon">📥</span>
+    </div>
+    <h2>Téléchargement</h2>
+    <p class="muted">Convertissez vos vidéos YouTube préférées en MP3 ou MP4</p>
+  </div>
   
   <form method="post" id="downloadForm">
-    <div class="form-group">
+    <div class="form-group url-input-group">
       <label class="form-label">🔗 Lien YouTube</label>
-      <input type="text" name="url" placeholder="https://www.youtube.com/watch?v=..." required>
+      <div class="input-with-button">
+        <input type="text" name="url" id="urlInput" placeholder="https://www.youtube.com/watch?v=..." required>
+        <button type="button" id="pasteBtn" class="paste-btn" title="Coller l'URL">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+          </svg>
+          <span class="paste-text">Coller</span>
+        </button>
+      </div>
       <p class="form-hint">Collez l'URL complète de la vidéo YouTube</p>
     </div>
     
     <div class="form-group">
       <label class="form-label">📦 Format de sortie</label>
-      <div class="download-options">
-        <label class="download-option selected" data-mode="mp3">
+      <div class="format-selector">
+        <label class="format-option" data-mode="mp3">
           <input type="radio" name="mode" value="mp3" checked>
-          <span class="download-option-icon">🎵</span>
-          <span class="download-option-label">MP3</span>
-          <span class="download-option-desc">Audio</span>
+          <div class="format-card selected">
+            <div class="format-icon-wrapper audio">
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M9 18V5l12-2v13"></path>
+                <circle cx="6" cy="18" r="3"></circle>
+                <circle cx="18" cy="16" r="3"></circle>
+              </svg>
+            </div>
+            <div class="format-details">
+              <span class="format-name">MP3</span>
+              <span class="format-type">Audio uniquement</span>
+            </div>
+            <div class="format-badge audio">🎵</div>
+            <div class="format-check">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="20 6 9 17 4 12"></polyline>
+              </svg>
+            </div>
+          </div>
         </label>
-        <label class="download-option" data-mode="mp4">
+        <label class="format-option" data-mode="mp4">
           <input type="radio" name="mode" value="mp4">
-          <span class="download-option-icon">🎥</span>
-          <span class="download-option-label">MP4</span>
-          <span class="download-option-desc">Vidéo</span>
+          <div class="format-card">
+            <div class="format-icon-wrapper video">
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18"></rect>
+                <line x1="7" y1="2" x2="7" y2="22"></line>
+                <line x1="17" y1="2" x2="17" y2="22"></line>
+                <line x1="2" y1="12" x2="22" y2="12"></line>
+                <line x1="2" y1="7" x2="7" y2="7"></line>
+                <line x1="2" y1="17" x2="7" y2="17"></line>
+                <line x1="17" y1="17" x2="22" y2="17"></line>
+                <line x1="17" y1="7" x2="22" y2="7"></line>
+              </svg>
+            </div>
+            <div class="format-details">
+              <span class="format-name">MP4</span>
+              <span class="format-type">Audio + Vidéo</span>
+            </div>
+            <div class="format-badge video">🎥</div>
+            <div class="format-check">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="20 6 9 17 4 12"></polyline>
+              </svg>
+            </div>
+          </div>
         </label>
       </div>
     </div>
     
-    <button type="submit" id="downloadBtn">
-      ⬇️ Télécharger (1 crédit)
+    <button type="submit" id="downloadBtn" class="download-submit-btn">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+        <polyline points="7 10 12 15 17 10"></polyline>
+        <line x1="12" y1="15" x2="12" y2="3"></line>
+      </svg>
+      <span>Télécharger</span>
+      <span class="credit-badge">1 crédit</span>
     </button>
   </form>
   
   <!-- Progress indicator (hidden by default) -->
-  <div id="progressContainer" class="download-progress" style="display:none;">
-    <div class="progress-header">
-      <span class="progress-icon">⏳</span>
-      <span class="progress-text" id="progressText">Initialisation...</span>
-    </div>
-    <div class="progress-bar-container">
-      <div class="progress-bar" id="progressBar" style="width: 0%"></div>
-    </div>
-    <div class="progress-stages">
-      <div class="progress-stage active" id="stage1">
-        <span class="stage-icon">🔍</span>
-        <span class="stage-label">Analyse</span>
+  <div id="progressContainer" class="progress-container" style="display:none;">
+    <div class="progress-card">
+      <div class="progress-header">
+        <div class="progress-spinner"></div>
+        <div class="progress-info">
+          <span class="progress-title" id="progressText">Initialisation...</span>
+          <span class="progress-subtitle" id="progressSubtext">Veuillez patienter</span>
+        </div>
+        <span class="progress-percent" id="progressPercent">0%</span>
       </div>
-      <div class="progress-stage" id="stage2">
-        <span class="stage-icon">📥</span>
-        <span class="stage-label">Téléchargement</span>
+      
+      <div class="progress-bar-wrapper">
+        <div class="progress-bar-track">
+          <div class="progress-bar-fill" id="progressBar"></div>
+        </div>
       </div>
-      <div class="progress-stage" id="stage3">
-        <span class="stage-icon">🔄</span>
-        <span class="stage-label">Conversion</span>
-      </div>
-      <div class="progress-stage" id="stage4">
-        <span class="stage-icon">✅</span>
-        <span class="stage-label">Terminé</span>
+      
+      <div class="progress-steps">
+        <div class="progress-step active" id="stage1">
+          <div class="step-indicator">
+            <svg class="step-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="11" cy="11" r="8"></circle>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+            <div class="step-line"></div>
+          </div>
+          <span class="step-label">Analyse</span>
+        </div>
+        <div class="progress-step" id="stage2">
+          <div class="step-indicator">
+            <svg class="step-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+              <polyline points="7 10 12 15 17 10"></polyline>
+              <line x1="12" y1="15" x2="12" y2="3"></line>
+            </svg>
+            <div class="step-line"></div>
+          </div>
+          <span class="step-label">Téléchargement</span>
+        </div>
+        <div class="progress-step" id="stage3">
+          <div class="step-indicator">
+            <svg class="step-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="23 4 23 10 17 10"></polyline>
+              <polyline points="1 20 1 14 7 14"></polyline>
+              <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+            </svg>
+            <div class="step-line"></div>
+          </div>
+          <span class="step-label">Conversion</span>
+        </div>
+        <div class="progress-step" id="stage4">
+          <div class="step-indicator">
+            <svg class="step-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+              <polyline points="22 4 12 14.01 9 11.01"></polyline>
+            </svg>
+          </div>
+          <span class="step-label">Terminé</span>
+        </div>
       </div>
     </div>
   </div>
   
-  {% if msg %}<p class="error">{{ msg }}</p>{% endif %}
+  {% if msg %}<div class="error-message">⚠️ {{ msg }}</div>{% endif %}
   
   {% if download_info %}
-  <div class="download-info-card">
-    <h3>📋 Informations du téléchargement</h3>
-    <div class="download-info-grid">
-      <div class="download-info-item">
-        <span class="download-info-label">📹 Titre</span>
-        <span class="download-info-value">{{ download_info.title }}</span>
+  <div class="download-result">
+    <div class="result-header">
+      <div class="result-icon">✅</div>
+      <h3>Téléchargement terminé</h3>
+    </div>
+    <div class="result-grid">
+      <div class="result-item">
+        <span class="result-label">📹 Titre</span>
+        <span class="result-value">{{ download_info.title }}</span>
       </div>
-      <div class="download-info-item">
-        <span class="download-info-label">👤 Chaîne</span>
-        <span class="download-info-value">{{ download_info.uploader }}</span>
+      <div class="result-item">
+        <span class="result-label">👤 Chaîne</span>
+        <span class="result-value">{{ download_info.uploader }}</span>
       </div>
-      <div class="download-info-item">
-        <span class="download-info-label">⏱️ Durée</span>
-        <span class="download-info-value">{{ download_info.duration_str }}</span>
+      <div class="result-item">
+        <span class="result-label">⏱️ Durée</span>
+        <span class="result-value">{{ download_info.duration_str }}</span>
       </div>
-      <div class="download-info-item">
-        <span class="download-info-label">👁️ Vues</span>
-        <span class="download-info-value">{{ download_info.views_str }}</span>
+      <div class="result-item">
+        <span class="result-label">👁️ Vues</span>
+        <span class="result-value">{{ download_info.views_str }}</span>
       </div>
       {% if download_info.resolution %}
-      <div class="download-info-item">
-        <span class="download-info-label">📺 Résolution</span>
-        <span class="download-info-value">{{ download_info.resolution }}</span>
+      <div class="result-item">
+        <span class="result-label">📺 Résolution</span>
+        <span class="result-value">{{ download_info.resolution }}</span>
       </div>
       {% endif %}
       {% if download_info.filesize_str %}
-      <div class="download-info-item">
-        <span class="download-info-label">📁 Taille</span>
-        <span class="download-info-value">{{ download_info.filesize_str }}</span>
+      <div class="result-item">
+        <span class="result-label">📁 Taille</span>
+        <span class="result-value">{{ download_info.filesize_str }}</span>
       </div>
       {% endif %}
     </div>
-    <p class="download-success">✅ Téléchargement terminé avec succès !</p>
   </div>
   {% endif %}
   
-  <p class="muted" style="text-align:center;margin-top:20px;">
-    ⏳ Les téléchargements lourds peuvent prendre du temps. Restez sur la page.
+  <p class="download-footer">
+    <span class="footer-icon">💡</span>
+    <span>Les téléchargements peuvent prendre quelques minutes selon la taille du fichier.</span>
   </p>
 </div>
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-  const downloadOptions = document.querySelectorAll('.download-option');
+  const formatOptions = document.querySelectorAll('.format-option');
   const form = document.getElementById('downloadForm');
   const downloadBtn = document.getElementById('downloadBtn');
   const progressContainer = document.getElementById('progressContainer');
   const progressBar = document.getElementById('progressBar');
   const progressText = document.getElementById('progressText');
+  const progressSubtext = document.getElementById('progressSubtext');
+  const progressPercent = document.getElementById('progressPercent');
+  const pasteBtn = document.getElementById('pasteBtn');
+  const urlInput = document.getElementById('urlInput');
+  
+  // Paste URL button
+  pasteBtn.addEventListener('click', async function() {
+    try {
+      const text = await navigator.clipboard.readText();
+      urlInput.value = text;
+      urlInput.focus();
+      pasteBtn.classList.add('pasted');
+      setTimeout(() => pasteBtn.classList.remove('pasted'), 1000);
+    } catch (err) {
+      // Fallback for browsers that don't support clipboard API
+      urlInput.focus();
+      document.execCommand('paste');
+    }
+  });
   
   // Format option selection
-  downloadOptions.forEach(function(option) {
+  formatOptions.forEach(function(option) {
     option.addEventListener('click', function() {
-      downloadOptions.forEach(function(o) { o.classList.remove('selected'); });
-      option.classList.add('selected');
+      formatOptions.forEach(function(o) {
+        o.querySelector('.format-card').classList.remove('selected');
+      });
+      option.querySelector('.format-card').classList.add('selected');
     });
   });
   
-  // Progress stages
+  // Progress stages with more details
   const stages = [
-    { id: 'stage1', text: 'Analyse de la vidéo...', percent: 10 },
-    { id: 'stage2', text: 'Téléchargement en cours...', percent: 40 },
-    { id: 'stage3', text: 'Conversion du fichier...', percent: 75 },
-    { id: 'stage4', text: 'Préparation du fichier...', percent: 95 }
+    { id: 'stage1', text: 'Analyse de la vidéo', subtext: 'Extraction des métadonnées...', percent: 15 },
+    { id: 'stage2', text: 'Téléchargement', subtext: 'Récupération du contenu...', percent: 50 },
+    { id: 'stage3', text: 'Conversion', subtext: 'Traitement du fichier...', percent: 80 },
+    { id: 'stage4', text: 'Finalisation', subtext: 'Préparation du fichier...', percent: 95 }
   ];
   
   let currentStage = 0;
@@ -138,27 +254,32 @@ document.addEventListener('DOMContentLoaded', function() {
   function updateProgress() {
     if (currentStage < stages.length) {
       const stage = stages[currentStage];
-      document.getElementById(stage.id).classList.add('active');
+      document.querySelectorAll('.progress-step').forEach((s, i) => {
+        if (i < currentStage) s.classList.add('completed');
+        if (i === currentStage) s.classList.add('active');
+      });
       progressText.textContent = stage.text;
+      progressSubtext.textContent = stage.subtext;
       progressBar.style.width = stage.percent + '%';
+      progressPercent.textContent = stage.percent + '%';
       currentStage++;
     } else {
-      // All stages complete, stop the interval
       clearInterval(progressInterval);
     }
   }
   
-  // Form submission loading state with progress
+  // Form submission
   form.addEventListener('submit', function() {
     downloadBtn.disabled = true;
-    downloadBtn.textContent = '⏳ Traitement en cours...';
+    downloadBtn.innerHTML = '<span class="btn-spinner"></span> Traitement...';
     progressContainer.style.display = 'block';
     
-    // Reset stages
-    document.querySelectorAll('.progress-stage').forEach(s => s.classList.remove('active'));
+    document.querySelectorAll('.progress-step').forEach(s => {
+      s.classList.remove('active', 'completed');
+    });
     currentStage = 0;
+    progressBar.style.width = '0%';
     
-    // Start progress animation
     updateProgress();
     progressInterval = setInterval(function() {
       if (currentStage < stages.length) {
@@ -168,89 +289,4 @@ document.addEventListener('DOMContentLoaded', function() {
   });
 });
 </script>
-
-<style>
-.download-progress {
-  margin: 20px 0;
-  padding: 20px;
-  background: var(--surface);
-  border-radius: var(--radius);
-  border: 1px solid var(--border);
-}
-
-.progress-header {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-bottom: 15px;
-}
-
-.progress-icon {
-  font-size: 1.5rem;
-  animation: pulse 1.5s infinite;
-}
-
-@keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.5; }
-}
-
-.progress-text {
-  font-weight: 600;
-  color: var(--text);
-}
-
-.progress-bar-container {
-  height: 8px;
-  background: var(--border);
-  border-radius: 4px;
-  overflow: hidden;
-  margin-bottom: 20px;
-}
-
-.progress-bar {
-  height: 100%;
-  background: linear-gradient(90deg, var(--accent), #00ff9b);
-  border-radius: 4px;
-  transition: width 0.5s ease;
-}
-
-.progress-stages {
-  display: flex;
-  justify-content: space-between;
-  gap: 10px;
-}
-
-.progress-stage {
-  flex: 1;
-  text-align: center;
-  padding: 10px 5px;
-  border-radius: var(--radius-sm);
-  background: var(--bg);
-  opacity: 0.5;
-  transition: all 0.3s ease;
-}
-
-.progress-stage.active {
-  opacity: 1;
-  background: rgba(0, 209, 122, 0.1);
-  border: 1px solid var(--accent);
-}
-
-.stage-icon {
-  display: block;
-  font-size: 1.25rem;
-  margin-bottom: 5px;
-}
-
-.stage-label {
-  font-size: 0.75rem;
-  color: var(--muted-text);
-}
-
-.progress-stage.active .stage-label {
-  color: var(--accent);
-  font-weight: 600;
-}
-</style>
 {% endblock %}
