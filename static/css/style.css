@@ -1755,11 +1755,12 @@ button:active::before,
 }
 
 /* ========== IMPROVED LINKS ========== */
-a {
+/* Text links with underline effect - use .text-link class */
+.text-link {
   position: relative;
 }
 
-a:not(.top-link):not(.side-link):not(.btn)::after {
+.text-link::after {
   content: '';
   position: absolute;
   bottom: -2px;
@@ -1770,11 +1771,11 @@ a:not(.top-link):not(.side-link):not(.btn)::after {
   transition: width var(--transition-fast);
 }
 
-a:not(.top-link):not(.side-link):not(.btn):hover::after {
+.text-link:hover::after {
   width: 100%;
 }
 
-/* ========== EXTRA RESPONSIVE ========== */
+/* ========== EXTRA RESPONSIVE ==========*/
 @media (min-width: 1200px) {
   .container {
     max-width: 1400px;

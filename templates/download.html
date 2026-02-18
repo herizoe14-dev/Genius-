@@ -224,9 +224,12 @@ document.addEventListener('DOMContentLoaded', function() {
       pasteBtn.classList.add('pasted');
       setTimeout(() => pasteBtn.classList.remove('pasted'), 1000);
     } catch (err) {
-      // Fallback for browsers that don't support clipboard API
+      // Fallback: prompt user to use Ctrl+V
       urlInput.focus();
-      document.execCommand('paste');
+      urlInput.placeholder = 'Utilisez Ctrl+V pour coller';
+      setTimeout(() => {
+        urlInput.placeholder = 'https://www.youtube.com/watch?v=...';
+      }, 2000);
     }
   });
   
@@ -255,8 +258,13 @@ document.addEventListener('DOMContentLoaded', function() {
     if (currentStage < stages.length) {
       const stage = stages[currentStage];
       document.querySelectorAll('.progress-step').forEach((s, i) => {
-        if (i < currentStage) s.classList.add('completed');
-        if (i === currentStage) s.classList.add('active');
+        // Reset classes first for proper state management
+        s.classList.remove('active');
+        if (i < currentStage) {
+          s.classList.add('completed');
+        } else if (i === currentStage) {
+          s.classList.add('active');
+        }
       });
       progressText.textContent = stage.text;
       progressSubtext.textContent = stage.subtext;
