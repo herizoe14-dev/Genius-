@@ -50,6 +50,17 @@ pip install Flask werkzeug pyTelegramBotAPI python-dotenv
 
 ### Configuration
 
+#### Option 1 : Script de configuration automatique (recommandé)
+
+Lancez le script de configuration interactive :
+```bash
+python setup_env.py
+```
+
+Le script vous guidera pour créer votre fichier `.env` avec tous les paramètres nécessaires.
+
+#### Option 2 : Configuration manuelle
+
 1. Copiez le fichier `.env.example` en `.env` :
 ```bash
 cp .env.example .env
@@ -58,6 +69,7 @@ cp .env.example .env
 2. Éditez `.env` et remplissez vos valeurs :
 ```
 FLASK_SECRET=votre_cle_secrete_generee_aleatoirement
+API_TOKEN=votre_token_bot_principal
 TOKEN_BOT_USER=votre_token_bot_telegram
 TOKEN_BOT_ADMIN=votre_token_bot_admin_telegram
 ADMIN_ID=votre_id_telegram
@@ -114,6 +126,7 @@ Ces fichiers sont automatiquement exclus du versioning Git.
 ├── boutique.py         # Système de boutique
 ├── downloader.py       # Module de téléchargement
 ├── config.py           # Configuration centralisée
+├── setup_env.py        # Script de configuration automatique
 ├── .env                # Variables d'environnement (NON versionné)
 ├── .env.example        # Template de configuration
 └── .gitignore          # Fichiers exclus du versioning
