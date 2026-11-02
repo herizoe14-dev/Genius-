@@ -1,36 +1,37 @@
 package com.genius.echos.net;
 
 /**
- * Protocole texte très simple : une ligne par message, champs séparés par des tabulations.
+ * Protocole texte : une ligne par message, champs séparés par des tabulations.
  *
  * Client -> Serveur
- *   HELLO name cls level xp gold potions version
- *   POS x y facing moving
- *   ATK                      attaque la cible la plus proche
- *   POT                      boit une potion
- *   BUY                      achète une potion (près de la fontaine)
+ *   HELLO name cls level xp gold version look inv bank weapon armor
+ *   POS x y dir moving       (dir : 0 bas, 1 haut, 2 gauche, 3 droite)
+ *   ATK | SKILL              attaque / compétence spéciale
+ *   USE slot                 utiliser / équiper l'objet de la case
+ *   QUSE hp|mp               boire la meilleure potion du type
+ *   UNEQ w|a                 retirer l'arme / l'armure
+ *   BUY itemId | SELL slot   boutiques (près de la porte)
+ *   DEP slot | WDR slot      dépôt (banque)
  *   CHAT text
  *
  * Serveur -> Client
  *   WELCOME id seed x y
- *   YOU hp maxHp level xp xpNext gold potions
- *   S players monsters       (instantané ; voir GameServer)
- *   FX kind x1 y1 x2 y2
- *   TXT x y color text
- *   TP x y
- *   CHAT name text           (name vide = message système)
- *   KICK reason
+ *   YOU hp maxHp mp maxMp level xp xpNext gold buffT atk def skillCd
+ *   INV inv bank weapon armor
+ *   S players monsters
+ *   FX kind x1 y1 x2 y2 | TXT x y color text | TP x y
+ *   CHAT name text | KICK reason
  */
 public final class Protocol {
     private Protocol() {}
 
-    public static final int VERSION = 1;
+    public static final int VERSION = 2;
     public static final int TCP_PORT = 47500;
     public static final int UDP_PORT = 47501;
     public static final String DISCOVER_ASK = "ECHOS?";
     public static final String DISCOVER_REPLY = "ECHOS!";
 
-    public static final int FX_SLASH = 0, FX_ARROW = 1, FX_FIREBALL = 2, FX_BITE = 3, FX_HEAL = 4, FX_LEVELUP = 5;
+    public static final int FX_SLASH = 0, FX_ARROW = 1, FX_FIREBALL = 2, FX_BITE = 3, FX_HEAL = 4, FX_LEVELUP = 5, FX_WHIRL = 6, FX_METEOR = 7, FX_MANA = 8;
     public static final int TXT_DMG_MOB = 0, TXT_DMG_PLAYER = 1, TXT_HEAL = 2, TXT_GOLD = 3, TXT_CRIT = 4, TXT_XP = 5;
 
     public static String join(Object... parts) {

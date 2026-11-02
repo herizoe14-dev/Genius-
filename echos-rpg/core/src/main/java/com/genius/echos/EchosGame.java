@@ -21,7 +21,9 @@ public class EchosGame extends Game {
     @Override
     public void create() {
         Gdx.input.setCatchKey(Input.Keys.BACK, true);
+        long t0 = System.nanoTime();
         art = new Art();
+        Gdx.app.log("Echos", "Graphismes générés en " + (System.nanoTime() - t0) / 1_000_000 + " ms");
         ui = new Ui(art);
         save = new Save();
         setScreen(new MenuScreen(this, null));

@@ -33,12 +33,26 @@ public final class Rules {
         }
     }
 
+    public static int maxMp(int cls, int level) {
+        switch (cls) {
+            case WARRIOR: return 40 + (level - 1) * 4;
+            case ARCHER: return 60 + (level - 1) * 6;
+            default: return 90 + (level - 1) * 9;
+        }
+    }
+
+    // Compétence spéciale (consomme des PM)
+    public static final String[] SKILL_NAMES = {"Tourbillon", "Volée", "Météore"};
+    public static final int[] SKILL_COST = {20, 25, 30};
+    public static final float[] SKILL_COOLDOWN = {4f, 5f, 6f};
+    public static final float[] SKILL_MULT = {1.6f, 1.25f, 2.2f};
+    public static final float[] SKILL_RADIUS = {2.3f, 7f, 2.8f};
+
     public static int xpToNext(int level) {
         return (int) (20 * Math.pow(level, 1.5));
     }
 
     public static final int MAX_LEVEL = 50;
-    public static final int POTION_PRICE = 15;
 
     // ---------------------------------------------------------------- monstres
     public static final int SLIME = 0, WOLF = 1, SKELETON = 2, GOLEM = 3;

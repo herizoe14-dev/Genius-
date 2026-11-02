@@ -57,7 +57,7 @@ public final class Ui implements Disposable {
     private BitmapFont make(FreeTypeFontGenerator g, int size, float k) {
         FreeTypeFontGenerator.FreeTypeFontParameter p = new FreeTypeFontGenerator.FreeTypeFontParameter();
         p.size = Math.max(8, Math.round(size * k));
-        p.characters = FreeTypeFontGenerator.DEFAULT_CHARS + "œŒ’…•★⚔✎‹›●✚";
+        p.characters = FreeTypeFontGenerator.DEFAULT_CHARS + "œŒ’…•★⚔✎‹›●✚—–×";
         p.borderWidth = Math.max(1f, 1.6f * k);
         p.borderColor = new Color(0, 0, 0, 0.85f);
         p.minFilter = com.badlogic.gdx.graphics.Texture.TextureFilter.Linear;

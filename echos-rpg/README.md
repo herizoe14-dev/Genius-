@@ -20,14 +20,27 @@ Ports utilisés : TCP 47500 (jeu) et UDP 47501 (découverte).
 
 ## Le jeu
 
-- 3 classes : **Guerrier** (corps à corps, robuste), **Archère** (tir à distance), **Mage** (boule de feu avec dégâts de zone).
-- Monstres par zones autour du village : gelées → loups → squelettes, et le **Golem ancien** dans les ruines au sud-est.
-- XP et or **partagés** entre les joueurs proches lors d'une victoire, niveaux 1 à 50.
-- **Fontaine du village** : soins rapides et achat de potions (15 or).
+- **Avatar** personnalisable (peau, coiffure, couleur des cheveux) ; la tenue change selon la classe et l'armure portée, l'arme selon son palier.
+- 3 classes, chacune avec une **compétence** qui coûte des PM : **Guerrier** (Tourbillon autour de soi), **Archère** (Volée sur 4 cibles), **Mage** (Météore en zone).
+- **Village d'Aube = zone de sécurité** : palissade avec 4 portes, aucun monstre ne peut y entrer ni y poursuivre un joueur.
+- 4 bâtiments avec boutique (s'approcher de la porte → bouton **Entrer**) :
+  - **Apothicaire** (Lila) : potions de vie et de mana, petites et grandes ;
+  - **Auberge** (Bram) : nourriture qui régénère PV/PM pendant un moment ;
+  - **Forge** (Hugo) : armes et armures **de ta classe**, 5 paliers (niveaux 1, 5, 10, 18, 28) ;
+  - **Dépôt** (Nora) : 48 places pour ranger tes objets.
+  On peut revendre ses objets à l'apothicaire, à l'auberge ou à la forge.
+- Sac de 24 places, équipement arme + armure (ATQ, DÉF, PV bonus).
+- Monstres par zones autour du village : gelées → loups → squelettes, et le **Golem ancien** dans les ruines (butin garanti).
+- XP et or **partagés** entre les joueurs proches, niveaux 1 à 50. Fontaine du village : soins rapides PV et PM.
 - Chat de groupe, mini-carte, sauvegarde automatique (une progression par classe).
 
-Commandes tactiles : glisser sur la moitié gauche de l'écran pour bouger, maintenir **ATTAQUE**, **✚** pour boire une potion.
-Sur PC : ZQSD/WASD ou flèches, Espace pour attaquer, Q potion, B acheter, Entrée pour le chat, Échap pour quitter.
+Graphismes : tout est dessiné par le code (tuiles 32 px avec transitions irrégulières entre herbe, terre, sable,
+pavés et dalles ; arbres, sapins, maisons à colombages, fontaine, étals, palissade, personnages en couches).
+
+Commandes tactiles : glisser sur la moitié gauche pour bouger, maintenir **ATTAQUE**, bouton étoile = compétence,
+potions rouge/bleue = boire, sac = inventaire.
+Sur PC : ZQSD/WASD ou flèches, Espace attaque, K compétence, Q/E potions vie/mana, I sac, F entrer dans une boutique,
+Entrée pour le chat, Échap pour fermer/quitter.
 
 ## Compiler
 
@@ -36,7 +49,7 @@ Prérequis : JDK 17+ et le SDK Android (créer `local.properties` avec `sdk.dir=
 ```bash
 ./gradlew :android:assembleRelease    # APK -> android/build/outputs/apk/release/
 ./gradlew :desktop:run                # version PC (peut jouer avec les téléphones du même réseau)
-./gradlew :core:test                  # tests réseau : 2 joueurs, combat, découverte UDP...
+./gradlew :core:test                  # tests : 2 joueurs, combat, boutiques, dépôt, zone sûre, découverte UDP...
 ```
 
 ## Architecture

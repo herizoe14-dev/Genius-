@@ -7,6 +7,7 @@ import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.GL20;
 import com.genius.echos.EchosGame;
 import com.genius.echos.Save;
+import com.genius.echos.gfx.CharacterDrawer;
 import com.genius.echos.net.GameClient;
 import com.genius.echos.net.GameServer;
 import com.genius.echos.net.Protocol;
@@ -37,7 +38,8 @@ public class MenuScreen extends ScreenAdapter {
 
     static String hello(Save s) {
         int c = s.cls();
-        return Protocol.join("HELLO", s.name(), c, s.level(c), s.xp(c), s.gold(c), s.potions(c), Protocol.VERSION);
+        return Protocol.join("HELLO", s.name(), c, s.level(c), s.xp(c), s.gold(c), Protocol.VERSION,
+                s.look(), s.inv(c), s.bank(c), s.weapon(c), s.armor(c));
     }
 
     private void playSolo() {
@@ -87,21 +89,26 @@ public class MenuScreen extends ScreenAdapter {
         ui.textCentered(ui.big, "Échos d'Aube", W / 2f, H - 80, GOLD);
         ui.textCentered(ui.small, "RPG hors ligne • multijoueur sur le même Wi-Fi", W / 2f, H - 135, SOFT);
 
-        // Nom
-        float nw = 520, nx = W / 2f - nw / 2f, ny = H - 225;
-        ui.button("Nom : " + game.save.name() + "   ✎", nx, ny, nw, 56, false);
+        // Nom + avatar
+        float nw = 420, nx = W / 2f - nw - 10, ny = H - 225;
+        ui.button("Nom : " + game.save.name() + "  ✎", nx, ny, nw, 56, false);
         if (Ui.inside(tx, ty, nx, ny, nw, 56)) askName();
+        float ax = W / 2f + 10;
+        ui.button("Avatar  ✎", ax, ny, nw, 56, false);
+        if (Ui.inside(tx, ty, ax, ny, nw, 56)) { ui.end(); game.setScreen(new AvatarScreen(game)); return; }
 
         // Classes
         int sel = game.save.cls();
-        float cw = 250, ch = 210, gap = 26, total = cw * 3 + gap * 2, cx0 = W / 2f - total / 2f, cy = H - 470;
+        float cw = 250, ch = 220, gap = 26, total = cw * 3 + gap * 2, cx0 = W / 2f - total / 2f, cy = H - 470;
         for (int c = 0; c < 3; c++) {
             float x = cx0 + c * (cw + gap);
             boolean on = c == sel;
             ui.rect(x - 4, cy - 4, cw + 8, ch + 8, on ? GOLD : new Color(0, 0, 0, 0.7f));
             ui.rect(x, cy, cw, ch, 0.16f, 0.13f, 0.22f, 1f);
             float bob = on ? (float) Math.sin(time * 6) * 4 : 0;
-            ui.sprite(game.art.heroes[c][on && ((int) (time * 4)) % 2 == 1 ? 1 : 0], x + cw / 2f - 40, cy + 92 + bob, 80, 80);
+            int frame = on ? new int[]{0, 1, 2, 1}[((int) (time * 6)) % 4] : 1;
+            CharacterDrawer.draw(ui.batch, game.art, game.save.look(), c, 0, 1, on ? CharacterDrawer.DIR_RIGHT : CharacterDrawer.DIR_DOWN,
+                    frame, x + cw / 2f - 44, cy + 86 + bob, 88, 110);
             ui.textCentered(ui.font, Rules.CLASS_NAMES[c], x + cw / 2f, cy + 72, on ? GOLD : Color.WHITE);
             ui.textCentered(ui.small, Rules.CLASS_DESC[c], x + cw / 2f, cy + 42, SOFT);
             ui.textCentered(ui.small, "Niveau " + game.save.level(c), x + cw / 2f, cy + 16, Color.LIGHT_GRAY);
