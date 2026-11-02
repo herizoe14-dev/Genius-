@@ -1,0 +1,31 @@
+apply plugin: 'application'
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_17
+    targetCompatibility = JavaVersion.VERSION_17
+}
+tasks.withType(JavaCompile).configureEach { options.encoding = 'UTF-8' }
+
+sourceSets.main.resources.srcDirs += [ rootProject.file('assets').path ]
+application.mainClass = 'com.genius.echos.desktop.DesktopLauncher'
+
+dependencies {
+    implementation project(':core')
+    implementation "com.badlogicgames.gdx:gdx-backend-lwjgl3:$gdxVersion"
+    implementation "com.badlogicgames.gdx:gdx-platform:$gdxVersion:natives-desktop"
+    implementation "com.badlogicgames.gdx:gdx-freetype-platform:$gdxVersion:natives-desktop"
+}
+
+run {
+    workingDir = rootProject.file('assets')
+    if (org.gradle.internal.os.OperatingSystem.current().isMacOsX()) jvmArgs += ['-XstartOnFirstThread']
+}
+
+tasks.register('dist', Jar) {
+    archiveFileName = 'EchosDAube-desktop.jar'
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    manifest { attributes 'Main-Class': application.mainClass }
+    dependsOn configurations.runtimeClasspath
+    from { configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) } }
+    with jar
+}
