@@ -1,0 +1,9 @@
+#cloud-config
+# A coller dans le champ "Cloud config" lors de la creation d'un serveur Hetzner.
+# Le serveur Minecraft Bedrock s'installe tout seul au premier demarrage (~5 min).
+package_update: true
+packages:
+  - git
+runcmd:
+  - git clone -b claude/minecraft-bedrock-server-dv3s7l https://github.com/herizoe14-dev/Genius-.git /root/Genius-
+  - bash /root/Genius-/minecraft-bedrock/install.sh > /var/log/bedrock-install.log 2>&1
