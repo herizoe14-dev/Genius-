@@ -1,0 +1,341 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#14171c">
+<title>Panneau Bedrock</title>
+<style>
+:root{
+  --bg:#14171c;--card:#1d2128;--line:#2c323c;--text:#e8eaed;--muted:#9aa3ad;
+  --green:#5fbf4a;--green-d:#3f8f30;--red:#e5534b;--amber:#e3a33b;--blue:#4ea1f3;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--text);font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+button,input,select{font:inherit;color:inherit}
+header{position:sticky;top:0;z-index:5;background:var(--bg);border-bottom:1px solid var(--line);padding:12px 16px;display:flex;align-items:center;gap:10px}
+header h1{font-size:17px;margin:0;flex:1}
+.dot{width:10px;height:10px;border-radius:50%;background:var(--muted);flex:none}
+.dot.on{background:var(--green);box-shadow:0 0 8px var(--green)}
+.dot.off{background:var(--red)}
+main{padding:16px;max-width:720px;margin:0 auto;padding-bottom:90px}
+nav{position:fixed;bottom:0;left:0;right:0;background:var(--card);border-top:1px solid var(--line);display:flex;padding-bottom:env(safe-area-inset-bottom)}
+nav button{flex:1;background:none;border:0;padding:10px 2px 8px;color:var(--muted);font-size:11px;display:flex;flex-direction:column;align-items:center;gap:3px}
+nav button.active{color:var(--green)}
+nav svg{width:22px;height:22px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:14px}
+.card h2{font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:0 0 10px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.stat .v{font-size:20px;font-weight:600}
+.stat .l{font-size:12px;color:var(--muted)}
+.btns{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.btn{border:1px solid var(--line);background:#262b33;border-radius:10px;padding:11px 8px;cursor:pointer;font-weight:600}
+.btn:disabled{opacity:.45}
+.btn.green{background:var(--green-d);border-color:var(--green-d)}
+.btn.red{background:#7d2a26;border-color:#7d2a26}
+.btn.small{padding:6px 10px;font-size:13px;font-weight:500}
+.btn.full{width:100%}
+.addr{font-family:ui-monospace,Menlo,monospace;background:#11141a;border-radius:8px;padding:10px;display:flex;justify-content:space-between;align-items:center;gap:8px;word-break:break-all}
+.console{background:#0d0f13;border-radius:10px;padding:10px;height:55vh;overflow:auto;font:12px/1.4 ui-monospace,Menlo,monospace;white-space:pre-wrap;word-break:break-word}
+.console .err{color:var(--red)}.console .warn{color:var(--amber)}.console .join{color:var(--green)}
+.row{display:flex;gap:8px;margin-top:10px}
+.row input{flex:1;min-width:0}
+input,select{background:#11141a;border:1px solid var(--line);border-radius:10px;padding:10px;width:100%}
+label{display:block;font-size:13px;color:var(--muted);margin:10px 0 4px}
+.list{list-style:none;margin:0;padding:0}
+.list li{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 0;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.list li:last-child{border-bottom:0}
+.muted{color:var(--muted);font-size:13px}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+#toast{position:fixed;left:50%;bottom:80px;transform:translateX(-50%);background:#30363f;padding:10px 16px;border-radius:10px;opacity:0;transition:opacity .2s;pointer-events:none;max-width:90vw;text-align:center;z-index:10}
+#toast.show{opacity:1}
+#login{max-width:360px;margin:15vh auto 0;padding:16px}
+#login h1{text-align:center;font-size:22px}
+.err-text{color:var(--red);font-size:14px;min-height:20px;margin-top:8px}
+.hidden{display:none!important}
+pre.log{background:#0d0f13;border-radius:8px;padding:10px;max-height:240px;overflow:auto;font-size:12px;white-space:pre-wrap}
+</style>
+</head>
+<body>
+
+<div id="login" class="hidden">
+  <h1>⛏️ Panneau Bedrock</h1>
+  <form id="loginForm" class="card">
+    <label for="pw">Mot de passe du panneau</label>
+    <input id="pw" type="password" autocomplete="current-password" required>
+    <div class="err-text" id="loginErr"></div>
+    <button class="btn green full" style="margin-top:8px">Se connecter</button>
+  </form>
+</div>
+
+<div id="app" class="hidden">
+  <header>
+    <span class="dot" id="hdrDot"></span>
+    <h1 id="hdrName">Serveur Minecraft</h1>
+    <button class="btn small" id="logoutBtn">Déconnexion</button>
+  </header>
+
+  <main>
+    <!-- Tableau de bord -->
+    <section data-tab="home">
+      <div class="card">
+        <h2>État</h2>
+        <div class="grid">
+          <div class="stat"><div class="v" id="sState">…</div><div class="l">Serveur</div></div>
+          <div class="stat"><div class="v" id="sPlayers">…</div><div class="l">Joueurs en ligne</div></div>
+          <div class="stat"><div class="v" id="sVersion">…</div><div class="l">Version</div></div>
+          <div class="stat"><div class="v" id="sUptime">…</div><div class="l">Allumé depuis</div></div>
+          <div class="stat"><div class="v" id="sMem">…</div><div class="l">RAM libre (VPS)</div></div>
+          <div class="stat"><div class="v" id="sDisk">…</div><div class="l">Disque libre</div></div>
+        </div>
+      </div>
+      <div class="card">
+        <h2>Contrôle</h2>
+        <div class="btns">
+          <button class="btn green" data-action="start">Démarrer</button>
+          <button class="btn" data-action="restart">Redémarrer</button>
+          <button class="btn red" data-action="stop">Arrêter</button>
+        </div>
+      </div>
+      <div class="card">
+        <h2>Adresse pour Minecraft</h2>
+        <div class="addr"><span id="addr">…</span><button class="btn small" id="copyAddr">Copier</button></div>
+        <p class="muted" style="margin:8px 0 0">Jouer → Serveurs → Ajouter un serveur. Seed : <span id="sSeed">…</span></p>
+      </div>
+      <div class="card">
+        <h2>Mise à jour</h2>
+        <p class="muted" style="margin-top:0">Le serveur se met à jour seul chaque nuit à 5h. Le téléphone et le serveur doivent avoir la même version.</p>
+        <button class="btn full" id="updateBtn">Vérifier et installer la dernière version</button>
+        <pre class="log hidden" id="updateLog"></pre>
+      </div>
+    </section>
+
+    <!-- Console -->
+    <section data-tab="console" class="hidden">
+      <div class="console" id="console"></div>
+      <form class="row" id="cmdForm">
+        <input id="cmd" placeholder="Commande (ex : time set day)" autocomplete="off" autocapitalize="off">
+        <button class="btn green">Envoyer</button>
+      </form>
+      <div class="chips" style="margin-top:10px">
+        <button class="btn small" data-cmd="time set day">☀️ Jour</button>
+        <button class="btn small" data-cmd="weather clear">🌤️ Beau temps</button>
+        <button class="btn small" data-cmd="list">👥 list</button>
+        <button class="btn small" data-cmd="save hold">💾 save hold</button>
+        <button class="btn small" data-cmd="save resume">▶️ save resume</button>
+      </div>
+    </section>
+
+    <!-- Joueurs -->
+    <section data-tab="players" class="hidden">
+      <div class="card">
+        <h2>En ligne</h2>
+        <ul class="list" id="playerList"></ul>
+      </div>
+      <div class="card">
+        <h2>Gérer un joueur</h2>
+        <input id="pName" placeholder="Pseudo Xbox (Gamertag)" autocapitalize="off">
+        <div class="btns" style="margin-top:10px">
+          <button class="btn green" data-player="op">Admin (op)</button>
+          <button class="btn" data-player="deop">Retirer admin</button>
+          <button class="btn red" data-player="kick">Expulser</button>
+          <button class="btn" data-player="allow">+ Liste blanche</button>
+          <button class="btn" data-player="disallow">− Liste blanche</button>
+        </div>
+        <p class="muted">La liste blanche n'est appliquée que si « Liste blanche » est activée dans Réglages.</p>
+      </div>
+    </section>
+
+    <!-- Réglages -->
+    <section data-tab="settings" class="hidden">
+      <form class="card" id="propsForm">
+        <h2>Réglages du serveur</h2>
+        <div id="props"></div>
+        <button class="btn green full" style="margin-top:14px">Enregistrer</button>
+        <p class="muted">Un redémarrage est nécessaire pour appliquer les changements. Le seed et le nom du monde ne s'appliquent qu'à un nouveau monde.</p>
+      </form>
+    </section>
+
+    <!-- Sauvegardes -->
+    <section data-tab="backups" class="hidden">
+      <div class="card">
+        <h2>Sauvegardes du monde</h2>
+        <button class="btn green full" id="backupBtn">Créer une sauvegarde maintenant</button>
+        <ul class="list" id="backupList" style="margin-top:10px"></ul>
+      </div>
+    </section>
+  </main>
+
+  <nav>
+    <button data-nav="home" class="active"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg>Accueil</button>
+    <button data-nav="console"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 17l6-5-6-5M12 19h8"/></svg>Console</button>
+    <button data-nav="players"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="8" r="4"/><path d="M2 21c0-4 3-6 7-6s7 2 7 6M17 11a3 3 0 1 0 0-6M22 21c0-3-2-5-5-5.5"/></svg>Joueurs</button>
+    <button data-nav="settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>Réglages</button>
+    <button data-nav="backups"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>Sauvegardes</button>
+  </nav>
+</div>
+
+<div id="toast"></div>
+
+<script>
+const $ = s => document.querySelector(s);
+const $$ = s => document.querySelectorAll(s);
+let tab = 'home', timer = null;
+
+const LABELS = {
+  'server-name':['Nom du serveur','text'],
+  'gamemode':['Mode de jeu',{survival:'Survie',creative:'Créatif',adventure:'Aventure'}],
+  'difficulty':['Difficulté',{peaceful:'Paisible',easy:'Facile',normal:'Normale',hard:'Difficile'}],
+  'max-players':['Joueurs max','number'],
+  'allow-cheats':['Commandes de triche',{false:'Non',true:'Oui'}],
+  'allow-list':['Liste blanche (seuls les joueurs autorisés)',{false:'Non',true:'Oui'}],
+  'online-mode':['Compte Xbox obligatoire',{true:'Oui',false:'Non'}],
+  'default-player-permission-level':['Rôle des nouveaux joueurs',{visitor:'Visiteur',member:'Membre',operator:'Admin'}],
+  'view-distance':['Distance de vue (5–32)','number'],
+  'tick-distance':['Distance de simulation (4–12)','number'],
+  'player-idle-timeout':['Expulsion si inactif (minutes, 0 = jamais)','number'],
+  'texturepack-required':['Packs de textures obligatoires',{false:'Non',true:'Oui'}],
+  'level-name':['Nom du monde','text'],
+  'level-seed':['Seed','text'],
+};
+
+function toast(msg){const t=$('#toast');t.textContent=msg;t.classList.add('show');clearTimeout(t._h);t._h=setTimeout(()=>t.classList.remove('show'),2800);}
+
+async function api(path, body){
+  const opt = body===undefined ? {} : {method:'POST',headers:{'Content-Type':'application/json','X-Panel':'1'},body:JSON.stringify(body)};
+  const r = await fetch(path, opt);
+  if (r.status===401 && path!=='/api/login'){ showLogin(); throw new Error('non connecté'); }
+  const j = await r.json().catch(()=>({}));
+  if (!r.ok) throw new Error(j.error || ('Erreur '+r.status));
+  return j;
+}
+
+function fmtDur(s){ if(s==null) return '—'; const d=Math.floor(s/86400),h=Math.floor(s%86400/3600),m=Math.floor(s%3600/60); return d?`${d} j ${h} h`:h?`${h} h ${m} min`:`${m} min`; }
+function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+
+function showLogin(){ $('#app').classList.add('hidden'); $('#login').classList.remove('hidden'); clearInterval(timer); $('#pw').focus(); }
+function showApp(){ $('#login').classList.add('hidden'); $('#app').classList.remove('hidden'); go(tab); }
+
+$('#loginForm').onsubmit = async e => {
+  e.preventDefault(); $('#loginErr').textContent='';
+  try { await api('/api/login',{password:$('#pw').value}); $('#pw').value=''; showApp(); }
+  catch(err){ $('#loginErr').textContent = err.message; }
+};
+$('#logoutBtn').onclick = async () => { await api('/api/logout',{}).catch(()=>{}); showLogin(); };
+
+function go(t){
+  tab=t;
+  $$('section[data-tab]').forEach(s=>s.classList.toggle('hidden', s.dataset.tab!==t));
+  $$('nav button').forEach(b=>b.classList.toggle('active', b.dataset.nav===t));
+  clearInterval(timer);
+  const fn = {home:loadStatus, console:loadLogs, players:loadStatus, settings:loadProps, backups:loadBackups}[t];
+  fn();
+  if (t==='home'||t==='players') timer=setInterval(loadStatus,5000);
+  if (t==='console') timer=setInterval(loadLogs,2500);
+}
+$$('nav button').forEach(b=>b.onclick=()=>go(b.dataset.nav));
+
+async function loadStatus(){
+  const s = await api('/api/status');
+  $('#hdrDot').className = 'dot ' + (s.running?'on':'off');
+  $('#hdrName').textContent = s.server_name || 'Serveur Minecraft';
+  $('#sState').textContent = s.running ? 'En ligne' : 'Arrêté';
+  $('#sState').style.color = s.running ? 'var(--green)' : 'var(--red)';
+  $('#sPlayers').textContent = `${s.players.length} / ${s.max_players||'?'}`;
+  $('#sVersion').textContent = s.version;
+  $('#sUptime').textContent = s.running ? fmtDur(s.uptime) : '—';
+  $('#sMem').textContent = `${s.mem_avail_mb} Mo`;
+  $('#sDisk').textContent = `${s.disk_free_gb} Go`;
+  $('#sSeed').textContent = s.seed || '—';
+  $('#addr').textContent = `${location.hostname}  port ${s.port}`;
+  $('#updateBtn').disabled = s.updating;
+  $('#updateBtn').textContent = s.updating ? 'Mise à jour en cours…' : 'Vérifier et installer la dernière version';
+  if (s.updating) loadUpdateLog();
+  const pl = $('#playerList');
+  pl.innerHTML = s.players.length ? s.players.map(p=>`<li><span>🟢 ${esc(p)}</span><span class="chips"><button class="btn small" data-quick="op" data-name="${esc(p)}">Admin</button><button class="btn small" data-quick="kick" data-name="${esc(p)}">Expulser</button></span></li>`).join('') : '<li class="muted">Personne n\'est connecté.</li>';
+}
+
+$('#copyAddr').onclick = () => { navigator.clipboard?.writeText(location.hostname).then(()=>toast('Adresse copiée'),()=>toast(location.hostname)); };
+
+$$('[data-action]').forEach(b=>b.onclick = async () => {
+  const a=b.dataset.action;
+  if (a!=='start' && !confirm(a==='stop'?'Arrêter le serveur ? Les joueurs seront déconnectés.':'Redémarrer le serveur ?')) return;
+  $$('[data-action]').forEach(x=>x.disabled=true);
+  toast(a==='start'?'Démarrage…':a==='stop'?'Arrêt…':'Redémarrage…');
+  try { await api('/api/action',{action:a}); toast('C\'est fait ✔'); } catch(e){ toast(e.message); }
+  $$('[data-action]').forEach(x=>x.disabled=false);
+  loadStatus();
+});
+
+$('#updateBtn').onclick = async () => {
+  try { await api('/api/action',{action:'update'}); toast('Mise à jour lancée'); $('#updateBtn').disabled=true; setTimeout(loadUpdateLog,1500); } catch(e){ toast(e.message); }
+};
+async function loadUpdateLog(){
+  const r = await api('/api/update-log'); const el=$('#updateLog');
+  el.classList.remove('hidden'); el.textContent = r.log.split('\n').slice(-15).join('\n'); el.scrollTop=el.scrollHeight;
+}
+
+async function loadLogs(){
+  const r = await api('/api/logs?n=300'); const c=$('#console');
+  const atBottom = c.scrollHeight - c.scrollTop - c.clientHeight < 40;
+  c.innerHTML = r.lines.map(l=>{ const cls=/ERROR/.test(l)?'err':/WARN/.test(l)?'warn':/Player (connected|Spawned)/.test(l)?'join':''; return `<div class="${cls}">${esc(l)}</div>`; }).join('') || '<span class="muted">Aucun message pour l\'instant.</span>';
+  if (atBottom) c.scrollTop = c.scrollHeight;
+}
+async function sendCmd(cmd){ try{ await api('/api/command',{command:cmd}); setTimeout(loadLogs,600);}catch(e){toast(e.message);} }
+$('#cmdForm').onsubmit = e => { e.preventDefault(); const v=$('#cmd').value.trim(); if(v){ sendCmd(v); $('#cmd').value=''; } };
+$$('[data-cmd]').forEach(b=>b.onclick=()=>sendCmd(b.dataset.cmd));
+
+async function playerAction(action, name){
+  if (!name) return toast('Entre un pseudo');
+  try { await api('/api/player',{action,name}); toast('Commande envoyée ✔'); setTimeout(loadStatus,1000); } catch(e){ toast(e.message); }
+}
+$$('[data-player]').forEach(b=>b.onclick=()=>playerAction(b.dataset.player, $('#pName').value.trim()));
+$('#playerList').onclick = e => { const b=e.target.closest('[data-quick]'); if(b) playerAction(b.dataset.quick, b.dataset.name); };
+
+async function loadProps(){
+  const r = await api('/api/properties'); const box=$('#props'); box.innerHTML='';
+  for (const [k,[label,type]] of Object.entries(LABELS)){
+    const v = r.editable[k] ?? '';
+    let field;
+    if (typeof type==='object'){
+      field = `<select name="${k}">${Object.entries(type).map(([val,txt])=>`<option value="${val}" ${val===v?'selected':''}>${txt}</option>`).join('')}</select>`;
+    } else field = `<input name="${k}" type="${type==='number'?'number':'text'}" value="${esc(v)}" ${type==='number'?'inputmode="numeric"':''}>`;
+    box.insertAdjacentHTML('beforeend', `<label>${label}</label>${field}`);
+    box.lastElementChild.dataset.orig = v;
+  }
+}
+$('#propsForm').onsubmit = async e => {
+  e.preventDefault(); const changes={};
+  $$('#props [name]').forEach(el=>{ if(el.value!==el.dataset.orig) changes[el.name]=el.value; });
+  if (!Object.keys(changes).length) return toast('Aucun changement');
+  try {
+    await api('/api/properties',{changes});
+    if (confirm('Réglages enregistrés. Redémarrer le serveur maintenant pour les appliquer ?')) { await api('/api/action',{action:'restart'}); toast('Redémarrage…'); }
+    loadProps();
+  } catch(err){ toast(err.message); }
+};
+
+async function loadBackups(){
+  const r = await api('/api/backups'); const ul=$('#backupList');
+  ul.innerHTML = r.backups.length ? r.backups.map(b=>`<li><span>${esc(b.date)}<br><span class="muted">${b.size_mb} Mo</span></span><span class="chips">
+    <a class="btn small" href="/api/backups/download?name=${encodeURIComponent(b.name)}" style="text-decoration:none">Télécharger</a>
+    <button class="btn small" data-restore="${esc(b.name)}">Restaurer</button>
+    <button class="btn small" data-del="${esc(b.name)}">🗑</button></span></li>`).join('') : '<li class="muted">Aucune sauvegarde.</li>';
+}
+$('#backupBtn').onclick = async () => {
+  $('#backupBtn').disabled=true; toast('Sauvegarde en cours…');
+  try { await api('/api/backups',{}); toast('Sauvegarde créée ✔'); loadBackups(); } catch(e){ toast(e.message); }
+  $('#backupBtn').disabled=false;
+};
+$('#backupList').onclick = async e => {
+  const r=e.target.closest('[data-restore]'), d=e.target.closest('[data-del]');
+  try {
+    if (r && confirm('Restaurer cette sauvegarde ? Le monde actuel sera remplacé (une copie de sécurité est faite avant).')) { toast('Restauration…'); await api('/api/backups/restore',{name:r.dataset.restore}); toast('Monde restauré ✔'); loadBackups(); }
+    if (d && confirm('Supprimer cette sauvegarde ?')) { await api('/api/backups/delete',{name:d.dataset.del}); loadBackups(); }
+  } catch(err){ toast(err.message); }
+};
+
+api('/api/me').then(r => r.logged ? showApp() : showLogin()).catch(showLogin);
+</script>
+</body>
+</html>

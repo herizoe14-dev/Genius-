@@ -42,7 +42,7 @@ die()  { echo -e "\e[1;31m[x]\e[0m $*" >&2; exit 1; }
 log "Installation des paquets nécessaires…"
 export DEBIAN_FRONTEND=noninteractive
 apt-get update -y
-apt-get install -y curl unzip jq screen ufw libcurl4 ca-certificates
+apt-get install -y curl unzip jq screen ufw libcurl4 ca-certificates python3 openssl sudo
 
 # ----------------------------- Swap ------------------------------------------
 if ! swapon --show | grep -q '/swapfile'; then
@@ -98,6 +98,7 @@ if [[ -d "$MC_DIR/worlds/$LEVEL_NAME" ]]; then
   warn "Le monde « $LEVEL_NAME » existe déjà : le seed ne s'applique qu'aux nouveaux mondes."
 fi
 
+printf 'logfile flush 1\nscrollback 2000\n' > "$MC_DIR/.screenrc"
 chown -R "$MC_USER:$MC_USER" "$MC_DIR"
 
 # ----------------------------- systemd ---------------------------------------
@@ -113,7 +114,8 @@ Type=simple
 User=$MC_USER
 WorkingDirectory=$MC_DIR
 Environment=LD_LIBRARY_PATH=$MC_DIR
-ExecStart=/usr/bin/screen -DmS bedrock $MC_DIR/bedrock_server
+ExecStartPre=/bin/sh -c '[ -f console.log ] && mv -f console.log console.prev.log || true'
+ExecStart=/usr/bin/screen -c $MC_DIR/.screenrc -L -Logfile $MC_DIR/console.log -DmS bedrock $MC_DIR/bedrock_server
 ExecStop=/usr/local/bin/bedrock-stop
 Restart=on-failure
 RestartSec=10
@@ -132,11 +134,70 @@ cat > /etc/cron.d/bedrock-update <<'EOF'
 0 5 * * * root /usr/local/bin/bedrock-update >> /var/log/bedrock-update.log 2>&1
 EOF
 
+# ----------------------------- Panneau web -----------------------------------
+PANEL_PORT="${PANEL_PORT:-8443}"
+PANEL_DIR=/opt/bedrock-panel
+PANEL_CONF=/etc/bedrock-panel
+log "Installation du panneau de gestion web (port $PANEL_PORT)…"
+mkdir -p "$PANEL_DIR" "$PANEL_CONF"
+install -m 644 "$SCRIPT_DIR/panel/panel.py" "$PANEL_DIR/panel.py"
+install -m 644 "$SCRIPT_DIR/panel/index.html" "$PANEL_DIR/index.html"
+
+if [[ ! -f "$PANEL_CONF/config.json" || -n "${PANEL_PASSWORD:-}" ]]; then
+  if [[ -z "${PANEL_PASSWORD:-}" ]]; then
+    PANEL_PASSWORD="$(tr -dc 'A-Za-z0-9' </dev/urandom | head -c 14)"
+    echo "$PANEL_PASSWORD" > /root/mot-de-passe-panneau.txt
+    chmod 600 /root/mot-de-passe-panneau.txt
+    GENERATED_PW=1
+  fi
+  if [[ ! -f "$PANEL_CONF/key.pem" ]]; then
+    openssl req -x509 -newkey rsa:2048 -nodes -days 3650 -subj "/CN=bedrock-panel" \
+      -keyout "$PANEL_CONF/key.pem" -out "$PANEL_CONF/cert.pem" 2>/dev/null
+  fi
+  PANEL_PASSWORD="$PANEL_PASSWORD" PANEL_PORT="$PANEL_PORT" MC_DIR="$MC_DIR" PANEL_CONF="$PANEL_CONF" python3 - <<'PY'
+import hashlib, json, os, secrets
+salt = secrets.token_bytes(16)
+h = hashlib.scrypt(os.environ["PANEL_PASSWORD"].encode(), salt=salt, n=2**14, r=8, p=1).hex()
+conf = os.environ["PANEL_CONF"]
+json.dump({"salt": salt.hex(), "hash": h, "port": int(os.environ["PANEL_PORT"]),
+           "mc_dir": os.environ["MC_DIR"], "service": "bedrock",
+           "cert": f"{conf}/cert.pem", "key": f"{conf}/key.pem"},
+          open(f"{conf}/config.json", "w"), indent=2)
+PY
+fi
+chown -R root:"$MC_USER" "$PANEL_CONF"
+chmod 750 "$PANEL_CONF"; chmod 640 "$PANEL_CONF"/*
+
+cat > /etc/sudoers.d/bedrock-panel <<EOF
+$MC_USER ALL=(root) NOPASSWD: /usr/bin/systemctl start bedrock, /usr/bin/systemctl stop bedrock, /usr/bin/systemctl restart bedrock, /usr/local/bin/bedrock-update
+EOF
+chmod 440 /etc/sudoers.d/bedrock-panel
+visudo -cf /etc/sudoers.d/bedrock-panel >/dev/null || { rm -f /etc/sudoers.d/bedrock-panel; die "règle sudo invalide"; }
+
+cat > /etc/systemd/system/bedrock-panel.service <<EOF
+[Unit]
+Description=Panneau web Minecraft Bedrock
+After=network-online.target bedrock.service
+
+[Service]
+User=$MC_USER
+ExecStart=/usr/bin/python3 $PANEL_DIR/panel.py
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+EOF
+systemctl daemon-reload
+systemctl enable bedrock-panel >/dev/null
+systemctl restart bedrock-panel
+
 # ----------------------------- Pare-feu --------------------------------------
 log "Configuration du pare-feu UFW…"
 ufw allow OpenSSH >/dev/null
 ufw allow ${PORT_V4}/udp >/dev/null
 ufw allow ${PORT_V6}/udp >/dev/null
+ufw allow ${PANEL_PORT}/tcp >/dev/null
 ufw --force enable >/dev/null
 
 IP4="$(curl -4 -s --max-time 5 https://api.ipify.org || hostname -I | awk '{print $1}')"
@@ -148,6 +209,9 @@ log " Serveur Minecraft Bedrock $VERSION installé et démarré !"
 log "   Adresse : $IP4"
 log "   Port    : $PORT_V4"
 log "   Seed    : $SEED"
+log ""
+log " Panneau de gestion : https://$IP4:$PANEL_PORT"
+[[ -n "${GENERATED_PW:-}" ]] && log "   Mot de passe : $(cat /root/mot-de-passe-panneau.txt)  (aussi dans /root/mot-de-passe-panneau.txt)"
 log ""
 log " Commandes utiles :"
 log "   systemctl status bedrock      → état du serveur"

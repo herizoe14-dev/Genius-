@@ -23,6 +23,22 @@
 
 3. Si tu as activé un **Firewall dans la console Hetzner Cloud**, ajoute-y une règle entrante **UDP 19132** (et 19133).
 
+## Panneau de gestion (application web)
+
+Ouvre **`https://<IP-du-serveur>:8443`** dans le navigateur du téléphone.
+Le navigateur affiche « connexion non sécurisée » la première fois (certificat auto-signé, mais la connexion est bien chiffrée) : touche **Paramètres avancés → Continuer**. Astuce : menu du navigateur → **Ajouter à l'écran d'accueil** pour l'avoir comme une appli.
+
+- **Accueil** : état, joueurs connectés, version, RAM/disque, démarrer / redémarrer / arrêter, mise à jour en un clic
+- **Console** : messages du serveur en direct, envoi de commandes (jour, météo…)
+- **Joueurs** : donner/retirer les droits admin, expulser, liste blanche
+- **Réglages** : mode de jeu, difficulté, nombre de joueurs, distance de vue…
+- **Sauvegardes** : créer, télécharger, restaurer, supprimer
+
+Mot de passe : celui mis dans `PANEL_PASSWORD` (cloud-config). Sans ça, un mot de passe est généré dans `/root/mot-de-passe-panneau.txt`.
+Pour le changer : `PANEL_PASSWORD='nouveau' bash Genius-/minecraft-bedrock/install.sh`.
+
+Pare-feu Hetzner Cloud éventuel : autoriser aussi **TCP 8443**.
+
 ## Se connecter depuis Minecraft
 
 Jouer → Serveurs → Ajouter un serveur
