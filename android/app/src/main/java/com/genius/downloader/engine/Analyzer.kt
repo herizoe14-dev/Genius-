@@ -35,14 +35,19 @@ object Analyzer {
         val result: Analysis? = when (platform) {
             Platform.PIXIV -> attempt { NativeExtractors.pixiv(url) }
             Platform.TWITTER -> attempt { NativeExtractors.twitter(url) } ?: ytdlp()
-            Platform.INSTAGRAM -> attempt { NativeExtractors.instagram(url) } ?: ytdlp() ?: attempt { NativeExtractors.openGraph(url) }
+            // Sans compte, OpenGraph ne donnerait que la 1re image : on préfère indiquer de se connecter.
+            Platform.INSTAGRAM -> attempt { NativeExtractors.instagram(url) } ?: ytdlp()
+                ?: if (Accounts.isLoggedIn(Account.INSTAGRAM)) attempt { NativeExtractors.openGraph(url) } else null
             Platform.TIKTOK ->
                 if ("/photo/" in url) attempt { NativeExtractors.tiktok(url) } ?: ytdlp()
                 else ytdlp()?.takeUnless { it is MediaResult && it.videoOptions.isEmpty() && it.gallery.isEmpty() }
                     ?: attempt { NativeExtractors.tiktok(url) }
+            Platform.FACEBOOK -> ytdlp()?.takeUnless { it is MediaResult && it.videoOptions.isEmpty() && it.gallery.isEmpty() }
+                ?: attempt { NativeExtractors.facebookPhotos(url) }
             else -> ytdlp() ?: attempt { NativeExtractors.openGraph(url) }
         }
-        result ?: throw ExtractionException(errors.firstOrNull() ?: "Impossible d'analyser ce lien")
+        val message = if (platform == Platform.FACEBOOK) errors.lastOrNull() else errors.firstOrNull()
+        result ?: throw ExtractionException(message ?: "Impossible d'analyser ce lien")
     }
 
     fun cleanError(e: Throwable): String {

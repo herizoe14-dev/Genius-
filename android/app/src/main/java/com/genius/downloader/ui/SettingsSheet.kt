@@ -20,6 +20,18 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import android.content.Intent
+import com.genius.downloader.engine.Account
+import com.genius.downloader.engine.Accounts
+import com.genius.downloader.ui.theme.Success
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -41,13 +53,22 @@ fun SettingsDialog(vm: MainViewModel, onDismiss: () -> Unit) {
     var auto by remember { mutableStateOf(Prefs.autoUpdate) }
     var paste by remember { mutableStateOf(Prefs.autoPaste) }
     val version = remember(updating) { vm.engineVersion() }
+    val ctx = LocalContext.current
+    // Rafraîchit l'état des comptes au retour de l'écran de connexion.
+    var tick by remember { mutableIntStateOf(0) }
+    val lifecycle = LocalLifecycleOwner.current.lifecycle
+    DisposableEffect(lifecycle) {
+        val obs = LifecycleEventObserver { _, e -> if (e == Lifecycle.Event.ON_RESUME) tick++ }
+        lifecycle.addObserver(obs)
+        onDispose { lifecycle.removeObserver(obs) }
+    }
 
     AlertDialog(
         onDismissRequest = onDismiss,
         containerColor = Surface1,
         title = { Text("Réglages", fontWeight = FontWeight.Bold) },
         text = {
-            Column {
+            Column(Modifier.verticalScroll(rememberScrollState())) {
                 SettingSwitch("Convertir l'audio en MP3", "Sinon : format d'origine (M4A/Opus), qualité max sans perte", mp3) {
                     mp3 = it; Prefs.audioMp3 = it
                 }
@@ -56,6 +77,22 @@ fun SettingsDialog(vm: MainViewModel, onDismiss: () -> Unit) {
                 }
                 SettingSwitch("Mise à jour auto du moteur", "Met à jour yt-dlp une fois par jour", auto) {
                     auto = it; Prefs.autoUpdate = it
+                }
+                Spacer(Modifier.height(10.dp))
+                Text("Comptes (pour les posts photo Instagram / Facebook)", color = TextDim, fontSize = 13.sp)
+                Account.entries.forEach { acc ->
+                    val logged = remember(tick, acc) { Accounts.isLoggedIn(acc) }
+                    Row(Modifier.fillMaxWidth().padding(vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Text(acc.label, Modifier.weight(1f), fontSize = 15.sp)
+                        if (logged) {
+                            Text("connecté ", color = Success, fontSize = 12.sp)
+                            TextButton(onClick = { Accounts.logout(acc); tick++ }) { Text("Déconnexion", color = TextDim) }
+                        } else {
+                            TextButton(onClick = {
+                                ctx.startActivity(Intent(ctx, LoginActivity::class.java).putExtra(LoginActivity.EXTRA_ACCOUNT, acc.name))
+                            }) { Text("Se connecter", color = Cyan) }
+                        }
+                    }
                 }
                 Spacer(Modifier.height(12.dp))
                 Text("Moteur : yt-dlp $version", color = TextDim, fontSize = 13.sp)

@@ -41,6 +41,7 @@ object YtDlp {
         addOption("--socket-timeout", 20)
         addOption("--retries", 5)
         addOption("--no-check-certificates")
+        Accounts.ytDlpCookieFile()?.let { addOption("--cookies", it.absolutePath) }
     }
 
     /** Lance yt-dlp -J et renvoie le JSON. */
@@ -146,8 +147,11 @@ object YtDlp {
                 val hasAudio = f.optString("acodec").let { it != "none" && it.isNotEmpty() } ||
                     (!f.has("acodec") && audios.isEmpty())
                 val id = f.optString("format_id")
-                val selector = if (hasAudio || bestAudio == null) "$id/b" else "$id+ba/$id/b"
-                val size = sizeOf(f) + if (hasAudio) 0 else sizeOf(bestAudio)
+                val noWm = if (platform == Platform.TIKTOK) "[format_note!*=?watermark]" else ""
+                val fallback = "bv*[height<=$h]$noWm+ba/b[height<=$h]$noWm/b$noWm"
+                val selector = if (hasAudio || bestAudio == null) "$id/$fallback" else "$id+ba[ext=m4a]/$id+ba/$id/$fallback"
+                val duration = json.optDouble("duration", 0.0)
+                val size = estimate(f, duration).let { v -> if (v <= 0) 0 else v + if (hasAudio) 0 else estimate(bestAudio, duration) }
                 val fps = f.optDouble("fps", 0.0).toInt()
                 VideoOption(
                     height = h,
@@ -230,6 +234,14 @@ object YtDlp {
             else -> "${h}p"
         }
         return if (fps > 30) "$base$fps" else base
+    }
+
+    /** Taille réelle si connue, sinon estimée à partir du débit (kbit/s) et de la durée. */
+    private fun estimate(f: JSONObject?, duration: Double): Long {
+        f ?: return 0
+        sizeOf(f).takeIf { it > 0 }?.let { return it }
+        val tbr = f.optDouble("tbr", 0.0).takeIf { it > 0 } ?: (f.optDouble("vbr", 0.0) + f.optDouble("abr", 0.0))
+        return if (tbr > 0 && duration > 0) (tbr * 1000 / 8 * duration).toLong() else 0
     }
 
     private fun sizeOf(f: JSONObject?): Long {

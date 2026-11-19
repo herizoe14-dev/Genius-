@@ -141,7 +141,9 @@ object NativeExtractors {
 
     fun tiktok(url: String): MediaResult {
         val id = TIKTOK_ID.find(url)?.groupValues?.get(1) ?: throw ExtractionException("Lien TikTok non reconnu")
-        val page = Http.get(if ("/photo/" in url || "/video/" in url) url.substringBefore('?') else "https://www.tiktok.com/@i/video/$id")
+        // La page /photo/ ne contient pas les données : la même ID via /video/ les contient (diaporamas inclus).
+        val user = Regex("""tiktok\.com/(@[^/?#]+)""").find(url)?.groupValues?.get(1) ?: "@i"
+        val page = Http.get("https://www.tiktok.com/$user/video/$id")
         val item = tiktokItem(page, id) ?: throw ExtractionException("TikTok : données introuvables (réessayez)")
 
         val author = item.optJSONObject("author")
@@ -211,9 +213,82 @@ object NativeExtractors {
 
     // ---------------------------------------------------------------- Instagram
     private val IG_CODE = Regex("""instagram\.com/(?:[^/?#]+/)?(?:p|reels?|tv)/([A-Za-z0-9_-]+)""")
+    private const val IG_APP_ID = "936619743392459"
 
     fun instagram(url: String): MediaResult {
         val code = IG_CODE.find(url)?.groupValues?.get(1) ?: throw ExtractionException("Lien Instagram non reconnu")
+        val errors = mutableListOf<String>()
+        if (Accounts.isLoggedIn(Account.INSTAGRAM)) {
+            runCatching { return instagramApi(url, code) }.onFailure { errors += it.message.orEmpty() }
+        }
+        runCatching { return instagramGraphql(url, code) }.onFailure { errors += it.message.orEmpty() }
+        throw ExtractionException(
+            if (Accounts.isLoggedIn(Account.INSTAGRAM)) "Instagram : ${errors.first()}"
+            else "Instagram bloque l'accès sans compte. Connectez-vous dans Réglages › Comptes › Instagram.",
+        )
+    }
+
+    /** shortcode -> identifiant numérique du média. */
+    private fun igMediaId(code: String): String {
+        val alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_"
+        var id = java.math.BigInteger.ZERO
+        code.take(11).forEach { id = id.multiply(java.math.BigInteger.valueOf(64)).add(java.math.BigInteger.valueOf(alphabet.indexOf(it).toLong())) }
+        return id.toString()
+    }
+
+    private fun igHeaders(code: String) = buildMap {
+        put("X-IG-App-ID", IG_APP_ID)
+        put("X-Requested-With", "XMLHttpRequest")
+        put("Referer", "https://www.instagram.com/p/$code/")
+        put("Origin", "https://www.instagram.com")
+        Accounts.cookie(Account.INSTAGRAM, "csrftoken")?.let { put("X-CSRFToken", it) }
+    }
+
+    /** API web d'Instagram avec le compte connecté : fiable pour photos, carrousels et reels. */
+    private fun instagramApi(url: String, code: String): MediaResult {
+        val body = Http.execute("https://www.instagram.com/api/v1/media/${igMediaId(code)}/info/", igHeaders(code)).use { r ->
+            if (r.code == 401 || r.code == 403) throw ExtractionException("session expirée, reconnectez-vous")
+            r.body?.string().orEmpty()
+        }
+        val item = runCatching { JSONObject(body) }.getOrNull()?.optJSONArray("items")?.optJSONObject(0)
+            ?: throw ExtractionException("publication introuvable")
+        val nodes = item.optJSONArray("carousel_media")?.objects()?.ifEmpty { null } ?: listOf(item)
+
+        fun bestImage(n: JSONObject) = n.optJSONObject("image_versions2")?.optJSONArray("candidates")?.objects()
+            ?.maxByOrNull { it.optInt("width") * it.optInt("height") }?.optString("url").orEmpty()
+        fun videos(n: JSONObject) = n.optJSONArray("video_versions")?.objects().orEmpty()
+
+        val gallery = nodes.map { n ->
+            val v = videos(n).maxByOrNull { it.optInt("width") * it.optInt("height") }
+            if (v != null) GalleryItem(v.optString("url"), thumb = bestImage(n), isVideo = true, ext = "mp4")
+            else GalleryItem(bestImage(n), ext = "jpg")
+        }.filter { it.url.isNotBlank() }
+        if (gallery.isEmpty()) throw ExtractionException("aucun média")
+
+        val singleVideo = nodes.size == 1 && videos(nodes[0]).isNotEmpty()
+        val videoOptions = if (singleVideo) videos(nodes[0])
+            .map { v ->
+                val h = minOf(v.optInt("height"), v.optInt("width")).takeIf { it > 0 } ?: v.optInt("height")
+                VideoOption(h, "${h}p", "sans filigrane", directUrl = v.optString("url"))
+            }.distinctBy { it.height }.sortedByDescending { it.height } else emptyList()
+        val caption = item.optJSONObject("caption")?.optString("text").orEmpty()
+        return MediaResult(
+            sourceUrl = url,
+            platform = Platform.INSTAGRAM,
+            title = caption.lineSequence().firstOrNull()?.take(120)?.ifBlank { null } ?: "Instagram $code",
+            uploader = item.optJSONObject("user")?.optStringOrNull("username")?.let { "@$it" },
+            thumbnail = bestImage(nodes[0]),
+            durationSec = item.optDouble("video_duration", 0.0).toInt(),
+            videoOptions = videoOptions,
+            audio = if (singleVideo) AudioOption("AAC · qualité max", ytdlpUrl = videoOptions.first().directUrl) else null,
+            gallery = if (singleVideo) emptyList() else gallery,
+        )
+    }
+
+    /** GraphQL public (sans compte) : marche parfois selon le réseau. */
+    private fun instagramGraphql(url: String, code: String): MediaResult {
+        // Récupère le cookie csrftoken (stocké dans le cookie jar).
+        runCatching { Http.execute("https://www.instagram.com/p/$code/").close() }
         val variables = JSONObject()
             .put("shortcode", code)
             .put("fetch_tagged_user_count", JSONObject.NULL)
@@ -224,34 +299,28 @@ object NativeExtractors {
             .add("variables", variables.toString())
             .add("doc_id", "8845758582119845")
             .build()
-        val req = Http.request("https://www.instagram.com/graphql/query").newBuilder()
+        val reqB = Http.request("https://www.instagram.com/graphql/query").newBuilder()
             .post(form)
-            .header("X-IG-App-ID", "936619743392459")
             .header("X-FB-LSD", "AVqbxe3J_YA")
             .header("X-ASBD-ID", "129477")
             .header("Sec-Fetch-Site", "same-origin")
-            .header("Origin", "https://www.instagram.com")
-            .header("Referer", "https://www.instagram.com/p/$code/")
-            .build()
-        val body = Http.client.newCall(req).execute().use { it.body?.string().orEmpty() }
+        igHeaders(code).forEach { (k, v) -> reqB.header(k, v) }
+        val body = Http.client.newCall(reqB.build()).execute().use { it.body?.string().orEmpty() }
         val media = runCatching { JSONObject(body) }.getOrNull()
             ?.optJSONObject("data")?.optJSONObject("xdt_shortcode_media")
-            ?: throw ExtractionException("Instagram : publication privée ou indisponible")
+            ?: throw ExtractionException("publication privée ou indisponible")
 
         val nodes = media.optJSONObject("edge_sidecar_to_children")?.optJSONArray("edges")?.objects()
             ?.mapNotNull { it.optJSONObject("node") }
             ?.ifEmpty { null } ?: listOf(media)
 
         val gallery = nodes.map { n ->
-            val isVideo = n.optBoolean("is_video")
             val img = bestIgImage(n)
-            if (isVideo) GalleryItem(n.optString("video_url"), thumb = img, isVideo = true, ext = "mp4")
+            if (n.optBoolean("is_video")) GalleryItem(n.optString("video_url"), thumb = img, isVideo = true, ext = "mp4")
             else GalleryItem(img, ext = "jpg")
         }
         val caption = media.optJSONObject("edge_media_to_caption")?.optJSONArray("edges")?.optJSONObject(0)
             ?.optJSONObject("node")?.optString("text").orEmpty()
-        val owner = media.optJSONObject("owner")?.optStringOrNull("username")
-
         val singleVideo = nodes.size == 1 && nodes[0].optBoolean("is_video")
         val videoOptions = if (singleVideo) {
             val n = nodes[0]
@@ -262,7 +331,7 @@ object NativeExtractors {
             sourceUrl = url,
             platform = Platform.INSTAGRAM,
             title = caption.lineSequence().firstOrNull()?.take(120)?.ifBlank { null } ?: "Instagram $code",
-            uploader = owner?.let { "@$it" },
+            uploader = media.optJSONObject("owner")?.optStringOrNull("username")?.let { "@$it" },
             thumbnail = bestIgImage(nodes[0]),
             durationSec = nodes[0].optDouble("video_duration", 0.0).toInt(),
             videoOptions = videoOptions,
@@ -274,6 +343,35 @@ object NativeExtractors {
     private fun bestIgImage(n: JSONObject): String =
         n.optJSONArray("display_resources")?.objects()?.maxByOrNull { it.optInt("config_width") }?.optStringOrNull("src")
             ?: n.optString("display_url")
+
+    // ---------------------------------------------------------------- Facebook (photos)
+    private val FB_IMAGE = Regex(""""(?:viewer_image|photo_image|full_image)"\s*:\s*\{[^{}]*?"uri"\s*:\s*"((?:[^"\\]|\\.)+)"""")
+
+    /** Photos d'une publication Facebook (meilleure résolution trouvée dans la page). */
+    fun facebookPhotos(url: String): MediaResult {
+        val html = Http.get(url)
+        val images = FB_IMAGE.findAll(html)
+            .mapNotNull { m -> runCatching { JSONObject("{\"u\":\"${m.groupValues[1]}\"}").getString("u") }.getOrNull() }
+            .filter { "scontent" in it || "fbcdn" in it }
+            .distinctBy { it.substringBefore('?').substringAfterLast('/') }
+            .toList()
+        if (images.isEmpty()) {
+            return runCatching { openGraph(url) }.getOrElse {
+                throw ExtractionException(
+                    if (Accounts.isLoggedIn(Account.FACEBOOK)) "Facebook : aucun média trouvé"
+                    else "Facebook bloque l'accès sans compte. Connectez-vous dans Réglages › Comptes › Facebook.",
+                )
+            }
+        }
+        val title = Regex("""<title>([^<]*)</title>""").find(html)?.groupValues?.get(1)?.trim().orEmpty()
+        return MediaResult(
+            sourceUrl = url,
+            platform = Platform.FACEBOOK,
+            title = title.ifBlank { "Facebook" },
+            thumbnail = images.first(),
+            gallery = images.map { GalleryItem(it, ext = "jpg") },
+        )
+    }
 
     // ---------------------------------------------------------------- OpenGraph (secours)
     fun openGraph(url: String): MediaResult {

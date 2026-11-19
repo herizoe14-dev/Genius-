@@ -23,7 +23,18 @@ object Http {
         }
         override fun loadForRequest(url: HttpUrl): List<Cookie> {
             val now = System.currentTimeMillis()
-            return store.values.flatMap { it.values }.filter { it.matches(url) && it.expiresAt > now }
+            val own = store.values.flatMap { it.values }.filter { it.matches(url) && it.expiresAt > now }
+            // Cookies du compte connecté dans l'app (Instagram, Facebook…) : prioritaires.
+            val account = Accounts.cookieHeader(url.toString())?.split(';')?.mapNotNull { raw ->
+                val c = raw.trim()
+                if ('=' !in c) null
+                else runCatching {
+                    Cookie.Builder().domain(url.host).path("/")
+                        .name(c.substringBefore('=')).value(c.substringAfter('=')).build()
+                }.getOrNull()
+            }.orEmpty()
+            val names = account.map { it.name }.toSet()
+            return account + own.filterNot { it.name in names }
         }
     }
 

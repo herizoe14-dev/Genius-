@@ -29,9 +29,9 @@ class ParseTest {
         val r = YtDlp.parse("https://youtu.be/abc", json) as MediaResult
         assertEquals(listOf(2160, 1080, 360), r.videoOptions.map { it.height })
         assertEquals("4K60", r.videoOptions[0].label)
-        assertEquals("313+ba/313/b", r.videoOptions[0].ytdlpFormat)
-        assertEquals("137+ba/137/b", r.videoOptions[1].ytdlpFormat) // H.264 préféré
-        assertEquals("18/b", r.videoOptions[2].ytdlpFormat) // déjà avec audio
+        assertEquals("313+ba[ext=m4a]/313+ba/313/bv*[height<=2160]+ba/b[height<=2160]/b", r.videoOptions[0].ytdlpFormat)
+        assertTrue(r.videoOptions[1].ytdlpFormat!!.startsWith("137+ba")) // H.264 préféré
+        assertTrue(r.videoOptions[2].ytdlpFormat!!.startsWith("18/")) // déjà avec audio
         assertEquals(53500000L, r.videoOptions[1].sizeBytes)
         assertTrue(r.audio!!.label.startsWith("OPUS"))
         assertEquals("https://www.youtube.com/watch?v=abc", r.videoOptions[0].ytdlpUrl)
@@ -49,8 +49,21 @@ class ParseTest {
         val r = YtDlp.parse("https://www.tiktok.com/@a/video/7", json) as MediaResult
         assertEquals(listOf(1080, 540), r.videoOptions.map { it.height })
         assertFalse(r.videoOptions.any { "download" in it.ytdlpFormat!! })
-        assertEquals("bytevc1_1080p_1/b", r.videoOptions[0].ytdlpFormat)
+        assertEquals("bytevc1_1080p_1/bv*[height<=1080][format_note!*=?watermark]+ba/b[height<=1080][format_note!*=?watermark]/b[format_note!*=?watermark]", r.videoOptions[0].ytdlpFormat)
         assertTrue(r.audio != null)
+    }
+
+    @Test
+    fun sizeEstimatedFromBitrate() {
+        val json = JSONObject(
+            """{"id":"x","title":"t","duration":100,"formats":[
+             {"format_id":"140","vcodec":"none","acodec":"mp4a","abr":128,"protocol":"https"},
+             {"format_id":"299","vcodec":"avc1","acodec":"none","height":1080,"tbr":4000,"protocol":"https"},
+             {"format_id":"136","vcodec":"avc1","acodec":"none","height":720,"tbr":2000,"protocol":"https"}]}""",
+        )
+        val r = YtDlp.parse("https://youtu.be/x", json) as MediaResult
+        assertEquals(50_000_000L + 1_600_000L, r.videoOptions[0].sizeBytes)
+        assertEquals(25_000_000L + 1_600_000L, r.videoOptions[1].sizeBytes)
     }
 
     @Test
