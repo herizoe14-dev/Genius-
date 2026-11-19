@@ -77,6 +77,19 @@ import org.json.JSONObject
 
 /** Un flux vidéo repéré pendant la navigation. */
 data class DetectedStream(val url: String, val kind: String, val referer: String?) {
+    /** Nom compréhensible : une playlist « master » regroupe toutes les qualités. */
+    val friendlyKind: String
+        get() {
+            val name = url.substringBefore('?').substringAfterLast('/').lowercase()
+            return when {
+                kind == "HLS" && ("master" in name || name == "playlist.m3u8") -> "Vidéo · toutes les qualités (recommandé)"
+                kind == "HLS" && Regex("""(audio|-a\d+\.m3u8$|aac)""").containsMatchIn(name) && !Regex("""-v\d""").containsMatchIn(name) -> "Piste audio seule (HLS)"
+                kind == "HLS" -> "Vidéo · une seule qualité (HLS)"
+                kind == "DASH" -> "Vidéo · toutes les qualités (DASH)"
+                else -> "Fichier vidéo ($kind)"
+            }
+        }
+
     val label: String
         get() = runCatching { java.net.URI(url) }.getOrNull()?.let { u ->
             "${u.host} · …${u.path.takeLast(40)}"
@@ -278,7 +291,7 @@ class SnifferActivity : ComponentActivity() {
                             .clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp))
                             .background(Surface1).padding(16.dp),
                     ) {
-                        Text("Vidéos détectées", fontWeight = FontWeight.Bold, fontSize = 17.sp)
+                        Text("Vidéos détectées", fontWeight = FontWeight.Bold, fontSize = 17.sp, color = Color.White)
                         Text("Les flux HLS « master » contiennent toutes les qualités.", color = TextDim, fontSize = 12.sp)
                         Spacer(Modifier.size(8.dp))
                         LazyColumn(verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -292,7 +305,7 @@ class SnifferActivity : ComponentActivity() {
                                     Icon(Icons.Rounded.Movie, null, tint = Cyan)
                                     Spacer(Modifier.width(10.dp))
                                     Column(Modifier.weight(1f)) {
-                                        Text(s.kind, fontWeight = FontWeight.SemiBold, color = Cyan, fontSize = 13.sp)
+                                        Text(s.friendlyKind, fontWeight = FontWeight.SemiBold, color = Cyan, fontSize = 13.sp)
                                         Text(s.label, fontSize = 12.sp, color = TextDim, maxLines = 2, overflow = TextOverflow.Ellipsis)
                                     }
                                 }
