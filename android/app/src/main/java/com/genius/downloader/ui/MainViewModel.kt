@@ -75,6 +75,22 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    /** Résultat du détecteur de flux. */
+    fun analyzeStream(streamUrl: String, headers: Map<String, String>, pageTitle: String?, pageUrl: String?) {
+        analyzeJob?.cancel()
+        pageUrl?.let { input.value = it }
+        _state.value = UiState.Loading
+        analyzeJob = viewModelScope.launch {
+            _state.value = try {
+                UiState.Done(Analyzer.analyzeStream(streamUrl, headers, pageTitle, pageUrl))
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Throwable) {
+                UiState.Error(Analyzer.cleanError(e))
+            }
+        }
+    }
+
     fun reset() {
         analyzeJob?.cancel()
         input.value = ""
@@ -90,6 +106,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             DownloadJob.YtDlpJob(
                 opt.ytdlpUrl ?: r.sourceUrl,
                 listOf("-f", opt.ytdlpFormat ?: "bv*+ba/b", "--merge-output-format", "mp4", "--embed-metadata"),
+                opt.headers,
             )
         }
         DownloadManager.enqueue("${r.title} · ${opt.label}", r.thumbnail, MediaKind.VIDEO, job, r.thumbnailHeaders)

@@ -37,6 +37,13 @@ import androidx.compose.material.icons.rounded.PlayCircle
 import androidx.compose.material.icons.rounded.PlaylistPlay
 import androidx.compose.material.icons.rounded.RadioButtonUnchecked
 import androidx.compose.material.icons.rounded.Videocam
+import androidx.compose.material.icons.rounded.TravelExplore
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import android.app.Activity
+import android.content.Intent
+import com.genius.downloader.engine.Analyzer
+import org.json.JSONObject
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Checkbox
@@ -90,6 +97,21 @@ fun HomeScreen(vm: MainViewModel, padding: PaddingValues) {
     val input by vm.input.collectAsState()
     val engineReady by vm.engineReady.collectAsState()
     val clipboard = LocalClipboardManager.current
+    val ctx = LocalContext.current
+    val sniffer = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { res ->
+        val data = res.data ?: return@rememberLauncherForActivityResult
+        if (res.resultCode != Activity.RESULT_OK) return@rememberLauncherForActivityResult
+        val stream = data.getStringExtra(SnifferActivity.RES_STREAM) ?: return@rememberLauncherForActivityResult
+        val headers = runCatching {
+            val o = JSONObject(data.getStringExtra(SnifferActivity.RES_HEADERS).orEmpty())
+            o.keys().asSequence().associateWith { o.getString(it) }
+        }.getOrDefault(emptyMap())
+        vm.analyzeStream(stream, headers, data.getStringExtra(SnifferActivity.RES_TITLE), data.getStringExtra(SnifferActivity.RES_PAGE))
+    }
+    val openSniffer: () -> Unit = {
+        val url = Analyzer.extractUrl(input) ?: "https://www.google.com"
+        sniffer.launch(Intent(ctx, SnifferActivity::class.java).putExtra(SnifferActivity.EXTRA_URL, url))
+    }
     val playlistSel = remember(state) {
         ((state as? UiState.Done)?.analysis as? PlaylistResult)?.let { p ->
             mutableStateListOf<Int>().apply { addAll(p.entries.indices) }
@@ -150,11 +172,16 @@ fun HomeScreen(vm: MainViewModel, padding: PaddingValues) {
                     },
                     color = TextDim, fontSize = 13.sp,
                 )
+                TextButton(onClick = openSniffer) {
+                    Icon(Icons.Rounded.TravelExplore, null, tint = Cyan, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(6.dp))
+                    Text("Détecteur de flux (navigateur)", color = Cyan, fontSize = 13.sp)
+                }
             }
         }
 
         when (val s = state) {
-            is UiState.Error -> item { ErrorCard(s.message) { vm.analyze() } }
+            is UiState.Error -> item { ErrorCard(s.message, onSniff = openSniffer) { vm.analyze() } }
             is UiState.Done -> when (val a = s.analysis) {
                 is MediaResult -> mediaResult(a, vm)
                 is PlaylistResult -> playlistResult(a, vm, playlistSel)
@@ -174,12 +201,26 @@ private fun PlatformsHint() {
 }
 
 @Composable
-private fun ErrorCard(message: String, onRetry: () -> Unit) {
+private fun ErrorCard(message: String, onSniff: (() -> Unit)? = null, onRetry: () -> Unit) {
+    val unsupported = message.contains("Unsupported URL", true) || message.contains("Aucun média", true) ||
+        message.contains("Unable to extract", true) || message.contains("No video", true)
     Card {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Icon(Icons.Rounded.ErrorOutline, null, tint = Danger)
             Spacer(Modifier.width(10.dp))
-            Text(message, Modifier.weight(1f), fontSize = 14.sp)
+            Text(
+                if (unsupported) "Ce site n'est pas reconnu directement." else message,
+                Modifier.weight(1f), fontSize = 14.sp, maxLines = 6, overflow = TextOverflow.Ellipsis,
+            )
+        }
+        if (unsupported && onSniff != null) {
+            Spacer(Modifier.height(8.dp))
+            Text(
+                "Ouvrez la page dans le détecteur, lancez la vidéo : Genius récupère le flux (MP4, HLS, DASH).",
+                color = TextDim, fontSize = 13.sp,
+            )
+            Spacer(Modifier.height(10.dp))
+            BigAction("Ouvrir dans le détecteur", Icons.Rounded.TravelExplore, onClick = onSniff)
         }
         TextButton(onClick = onRetry, modifier = Modifier.align(Alignment.End)) { Text("Réessayer", color = Cyan) }
     }

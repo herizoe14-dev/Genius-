@@ -50,6 +50,30 @@ object Analyzer {
         result ?: throw ExtractionException(message ?: "Impossible d'analyser ce lien")
     }
 
+    /**
+     * Analyse un flux repéré par le détecteur (MP4, HLS, DASH) avec les en-têtes de la page
+     * (Referer, User-Agent, cookies) : beaucoup de lecteurs refusent le flux sans eux.
+     */
+    suspend fun analyzeStream(
+        streamUrl: String,
+        headers: Map<String, String>,
+        pageTitle: String?,
+        pageUrl: String?,
+    ): MediaResult = withContext(Dispatchers.IO) {
+        YtDlp.ready.await()
+        val r = YtDlp.analyze(streamUrl, headers) as? MediaResult
+            ?: throw ExtractionException("Flux non lisible")
+        val title = pageTitle?.takeIf { it.isNotBlank() } ?: r.title
+        r.copy(
+            title = title,
+            platform = Platform.of(pageUrl ?: streamUrl),
+            thumbnailHeaders = headers,
+            videoOptions = r.videoOptions.map { it.copy(headers = headers) },
+            audio = r.audio?.copy(headers = headers),
+            gallery = r.gallery.map { it.copy(headers = headers) },
+        )
+    }
+
     fun cleanError(e: Throwable): String {
         val msg = (e.message ?: e.javaClass.simpleName).trim()
         val line = msg.lineSequence().lastOrNull { it.contains("ERROR") } ?: msg.lineSequence().firstOrNull().orEmpty()

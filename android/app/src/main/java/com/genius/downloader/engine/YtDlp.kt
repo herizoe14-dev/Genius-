@@ -45,9 +45,10 @@ object YtDlp {
     }
 
     /** Lance yt-dlp -J et renvoie le JSON. */
-    fun dumpJson(url: String, flatPlaylist: Boolean = true): JSONObject {
+    fun dumpJson(url: String, flatPlaylist: Boolean = true, headers: Map<String, String> = emptyMap()): JSONObject {
         val req = baseRequest(url).apply {
             addOption("-J")
+            headers.forEach { (k, v) -> addOption("--add-header", "$k:$v") }
             if (flatPlaylist) addOption("--flat-playlist")
         }
         val resp = YoutubeDL.getInstance().execute(req)
@@ -57,8 +58,8 @@ object YtDlp {
         return JSONObject(out.substring(start))
     }
 
-    fun analyze(url: String): Analysis {
-        val json = dumpJson(url)
+    fun analyze(url: String, headers: Map<String, String> = emptyMap()): Analysis {
+        val json = dumpJson(url, headers = headers)
         return parse(url, json)
     }
 
