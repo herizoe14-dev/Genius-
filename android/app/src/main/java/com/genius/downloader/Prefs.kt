@@ -25,6 +25,16 @@ object Prefs {
         get() = sp.getBoolean("auto_paste", true)
         set(v) = sp.edit().putBoolean("auto_paste", v).apply()
 
+    /** Connexions simultanées par téléchargement (morceaux HLS/DASH). Bas = doux pour les petits modems. */
+    var connections: Int
+        get() = sp.getInt("connections", 2)
+        set(v) = sp.edit().putInt("connections", v).apply()
+
+    /** Vitesse max en Ko/s (0 = illimitée). */
+    var speedLimitKb: Int
+        get() = sp.getInt("speed_limit", 0)
+        set(v) = sp.edit().putInt("speed_limit", v).apply()
+
     var lastUpdate: Long
         get() = sp.getLong("last_update", 0)
         set(v) = sp.edit().putLong("last_update", v).apply()

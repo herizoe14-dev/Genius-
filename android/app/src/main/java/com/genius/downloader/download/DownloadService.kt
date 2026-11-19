@@ -24,6 +24,8 @@ import kotlinx.coroutines.launch
 class DownloadService : Service() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     private var started = false
+    private var wakeLock: android.os.PowerManager.WakeLock? = null
+    private var wifiLock: android.net.wifi.WifiManager.WifiLock? = null
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -41,6 +43,7 @@ class DownloadService : Service() {
         )
         if (!started) {
             started = true
+            acquireLocks()
             @OptIn(kotlinx.coroutines.FlowPreview::class)
             scope.launch {
                 DownloadManager.tasks.sample(500).collectLatest { tasks ->
@@ -96,7 +99,24 @@ class DownloadService : Service() {
         getSystemService(NotificationManager::class.java).notify(ID_DONE, n)
     }
 
+    /** Empêche le Wi-Fi et le processeur de s'endormir écran éteint (sinon coupures). */
+    @Suppress("DEPRECATION")
+    private fun acquireLocks() {
+        runCatching {
+            wakeLock = getSystemService(android.os.PowerManager::class.java)
+                .newWakeLock(android.os.PowerManager.PARTIAL_WAKE_LOCK, "Genius:download").apply { acquire(6 * 3600_000L) }
+        }
+        runCatching {
+            val wm = applicationContext.getSystemService(android.net.wifi.WifiManager::class.java)
+            val mode = if (Build.VERSION.SDK_INT >= 29) android.net.wifi.WifiManager.WIFI_MODE_FULL_HIGH_PERF
+            else android.net.wifi.WifiManager.WIFI_MODE_FULL
+            wifiLock = wm.createWifiLock(mode, "Genius:download").apply { acquire() }
+        }
+    }
+
     override fun onDestroy() {
+        runCatching { wakeLock?.takeIf { it.isHeld }?.release() }
+        runCatching { wifiLock?.takeIf { it.isHeld }?.release() }
         scope.cancel()
         super.onDestroy()
     }

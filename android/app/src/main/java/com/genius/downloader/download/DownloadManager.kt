@@ -13,6 +13,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
@@ -55,7 +56,7 @@ data class DownloadTask(
 
 object DownloadManager {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-    private val slots = Semaphore(3)
+    private val slots = Semaphore(2)
     private val jobs = ConcurrentHashMap<String, Job>()
     private lateinit var app: Context
 
@@ -105,10 +106,14 @@ object DownloadManager {
 
     fun remove(id: String) {
         cancel(id)
+        File(app.cacheDir, "dl/$id").deleteRecursively()
         _tasks.update { list -> list.filterNot { it.id == id } }
     }
 
-    fun clearFinished() = _tasks.update { list -> list.filter { it.active } }
+    fun clearFinished() {
+        _tasks.value.filterNot { it.active }.forEach { File(app.cacheDir, "dl/${it.id}").deleteRecursively() }
+        _tasks.update { list -> list.filter { it.active } }
+    }
 
     private fun find(id: String) = _tasks.value.firstOrNull { it.id == id }
 
@@ -118,52 +123,82 @@ object DownloadManager {
     private suspend fun run(id: String) {
         val task = find(id) ?: return
         if (task.status == Status.CANCELED) return
-        set(id) { it.copy(status = Status.RUNNING, info = "Démarrage…") }
-        val workDir = File(app.cacheDir, "dl/$id").apply { deleteRecursively(); mkdirs() }
-        try {
-            val files = when (val job = task.job) {
-                is DownloadJob.YtDlpJob -> {
-                    YtDlp.ready.await()
-                    YtDlp.download(job.url, workDir, job.args, job.headers, id) { p, line ->
-                        set(id) { it.copy(progress = (p / 100f).coerceIn(0f, 1f), info = prettyLine(line)) }
+        set(id) { it.copy(status = Status.RUNNING, info = "Démarrage…", error = null) }
+        // On NE vide PAS le dossier : les morceaux déjà reçus servent à reprendre.
+        val workDir = File(app.cacheDir, "dl/$id").apply { mkdirs() }
+        var attempt = 0
+        while (true) {
+            try {
+                val files = when (val job = task.job) {
+                    is DownloadJob.YtDlpJob -> {
+                        YtDlp.ready.await()
+                        YtDlp.download(job.url, workDir, job.args, job.headers, id) { p, line ->
+                            set(id) { it.copy(progress = (p / 100f).coerceIn(0f, 1f), info = prettyLine(line)) }
+                        }
                     }
+                    is DownloadJob.DirectJob -> listOf(direct(id, job, workDir))
                 }
-                is DownloadJob.DirectJob -> listOf(direct(id, job, workDir))
-            }
-            coroutineContext.ensureActive()
-            if (files.isEmpty()) throw IllegalStateException("Aucun fichier produit")
-            set(id) { it.copy(progress = 1f, info = "Enregistrement…") }
-            val saved = files.sortedBy { it.name }.map { MediaSaver.publish(app, it) to MediaSaver.mimeOf(it) }
-            set(id) {
-                it.copy(
-                    status = Status.DONE, progress = 1f, uris = saved.map { s -> s.first.toString() },
-                    mime = saved.firstOrNull()?.second,
-                    info = "Enregistré dans ${folderOf(it.kind)}",
-                )
-            }
-        } catch (e: YoutubeDL.CanceledException) {
-            set(id) { it.copy(status = Status.CANCELED, info = "Annulé") }
-        } catch (e: kotlinx.coroutines.CancellationException) {
-            set(id) { it.copy(status = Status.CANCELED, info = "Annulé") }
-        } catch (e: Throwable) {
-            if (find(id)?.status != Status.CANCELED) {
+                coroutineContext.ensureActive()
+                if (files.isEmpty()) throw IllegalStateException("Aucun fichier produit")
+                set(id) { it.copy(progress = 1f, info = "Enregistrement…") }
+                val saved = files.sortedBy { it.name }.map { MediaSaver.publish(app, it) to MediaSaver.mimeOf(it) }
+                set(id) {
+                    it.copy(
+                        status = Status.DONE, progress = 1f, uris = saved.map { s -> s.first.toString() },
+                        mime = saved.firstOrNull()?.second,
+                        info = "Enregistré dans ${folderOf(it.kind)}",
+                    )
+                }
+                workDir.deleteRecursively()
+                return
+            } catch (e: YoutubeDL.CanceledException) {
+                set(id) { it.copy(status = Status.CANCELED, info = "Annulé") }
+                return
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                if (find(id)?.status != Status.CANCELED) set(id) { it.copy(status = Status.CANCELED, info = "Annulé") }
+                throw e
+            } catch (e: Throwable) {
+                if (find(id)?.status == Status.CANCELED) return
+                attempt++
+                val network = isNetworkError(e) || !Net.isOnline(app)
+                if (attempt <= (if (network) 15 else 2)) {
+                    // Coupure (modem qui redémarre, réseau mobile…) : on attend le retour du réseau puis on reprend.
+                    set(id) { it.copy(info = "Connexion perdue · reprise automatique ($attempt)…") }
+                    Net.awaitOnline(app)
+                    delay(3000L * attempt.coerceAtMost(5))
+                    set(id) { it.copy(info = "Reprise du téléchargement…") }
+                    continue
+                }
                 set(id) { it.copy(status = Status.FAILED, error = Analyzer.cleanError(e), info = "") }
+                return
             }
-        } finally {
-            workDir.deleteRecursively()
         }
+    }
+
+    private fun isNetworkError(e: Throwable): Boolean {
+        if (e is java.io.IOException) return true
+        val m = (e.message ?: "").lowercase()
+        return listOf(
+            "timed out", "timeout", "connection reset", "connection aborted", "connection refused", "unreachable",
+            "unable to resolve", "temporary failure", "name resolution", "no route", "incompleteread", "broken pipe",
+            "giving up after", "connectionerror", "remote end closed", "ssl", "eof occurred", "errno",
+        ).any { it in m }
     }
 
     private suspend fun direct(id: String, job: DownloadJob.DirectJob, dir: File): File {
         val out = File(dir, job.fileName)
-        Http.execute(job.url, job.headers).use { resp ->
+        val already = if (out.exists()) out.length() else 0L
+        val headers = if (already > 0) job.headers + ("Range" to "bytes=$already-") else job.headers
+        Http.execute(job.url, headers).use { resp ->
+            if (resp.code == 416) return out // déjà complet
             if (!resp.isSuccessful) throw IllegalStateException("HTTP ${resp.code}")
             val body = resp.body ?: throw IllegalStateException("Réponse vide")
-            val total = body.contentLength()
-            var done = 0L
+            val resumed = resp.code == 206 && already > 0
+            var done = if (resumed) already else 0L
+            val total = body.contentLength().let { if (it > 0) it + done else it }
             var last = 0L
             body.byteStream().use { input ->
-                out.outputStream().use { output ->
+                java.io.FileOutputStream(out, resumed).use { output ->
                     val buf = ByteArray(1 shl 16)
                     while (true) {
                         coroutineContext.ensureActive()
@@ -194,12 +229,13 @@ object DownloadManager {
         MediaKind.IMAGE -> "Images/Genius"
     }
 
-    private val PROGRESS_RE = Regex("""of\s+~?\s*([\d.]+\s*\w+).*?at\s+([\d.]+\s*\w+/s)(?:.*?ETA\s+(\S+))?""")
+    private val PROGRESS_RE = Regex("""of\s+(~?)\s*([\d.]+\s*\w+).*?at\s+([\d.]+\s*\w+/s)(?:.*?ETA\s+(\S+))?""")
 
     private fun prettyLine(line: String): String {
         PROGRESS_RE.find(line)?.let { m ->
-            val eta = m.groupValues.getOrNull(3)?.takeIf { it.isNotBlank() }
-            return listOfNotNull(m.groupValues[1], m.groupValues[2], eta?.let { "reste $it" }).joinToString(" · ")
+            val eta = m.groupValues.getOrNull(4)?.takeIf { it.isNotBlank() }
+            val size = (if (m.groupValues[1].isNotEmpty()) "≈ " else "") + m.groupValues[2]
+            return listOfNotNull(size, m.groupValues[3], eta?.let { "reste $it" }).joinToString(" · ")
         }
         return when {
             "[Merger]" in line -> "Fusion audio + vidéo…"

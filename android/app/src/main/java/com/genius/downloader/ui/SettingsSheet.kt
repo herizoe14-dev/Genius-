@@ -36,6 +36,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -77,6 +80,14 @@ fun SettingsDialog(vm: MainViewModel, onDismiss: () -> Unit) {
                 }
                 SettingSwitch("Mise à jour auto du moteur", "Met à jour yt-dlp une fois par jour", auto) {
                     auto = it; Prefs.autoUpdate = it
+                }
+                Spacer(Modifier.height(10.dp))
+                Text("Réseau (baissez si votre modem ou partage de connexion coupe)", color = TextDim, fontSize = 13.sp)
+                var conn by remember { mutableIntStateOf(Prefs.connections) }
+                ChoiceRow("Connexions", listOf(1 to "1", 2 to "2", 4 to "4", 8 to "8"), conn) { conn = it; Prefs.connections = it }
+                var limit by remember { mutableIntStateOf(Prefs.speedLimitKb) }
+                ChoiceRow("Vitesse max", listOf(0 to "∞", 500 to "0,5 Mo/s", 1000 to "1 Mo/s", 3000 to "3 Mo/s"), limit) {
+                    limit = it; Prefs.speedLimitKb = it
                 }
                 Spacer(Modifier.height(10.dp))
                 Text("Comptes (pour les posts photo Instagram / Facebook)", color = TextDim, fontSize = 13.sp)
@@ -121,5 +132,28 @@ private fun SettingSwitch(title: String, subtitle: String, checked: Boolean, onC
             checked, onChange,
             colors = SwitchDefaults.colors(checkedTrackColor = Cyan, checkedThumbColor = Color.Black),
         )
+    }
+}
+
+@Composable
+private fun ChoiceRow(title: String, options: List<Pair<Int, String>>, selected: Int, onSelect: (Int) -> Unit) {
+    Column(Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
+        Text(title, fontSize = 14.sp)
+        Row(Modifier.fillMaxWidth().padding(top = 4.dp), horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(6.dp)) {
+            options.forEach { (v, label) ->
+                val sel = v == selected
+                Text(
+                    label,
+                    fontSize = 12.sp,
+                    color = if (sel) Color.Black else TextDim,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                    modifier = Modifier.weight(1f)
+                        .clip(androidx.compose.foundation.shape.RoundedCornerShape(10.dp))
+                        .background(if (sel) Cyan else Color(0xFF22222E))
+                        .clickable { onSelect(v) }
+                        .padding(vertical = 8.dp),
+                )
+            }
+        }
     }
 }

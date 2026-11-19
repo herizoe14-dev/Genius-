@@ -1,6 +1,7 @@
 package com.genius.downloader.engine
 
 import android.content.Context
+import com.genius.downloader.Prefs
 import android.util.Log
 import com.yausername.ffmpeg.FFmpeg
 import com.yausername.youtubedl_android.YoutubeDL
@@ -162,6 +163,7 @@ object YtDlp {
                         if (fps > 0) "${fps}fps" else null,
                     ).joinToString(" · "),
                     sizeBytes = size,
+                    sizeApprox = f.optLong("filesize", 0) <= 0,
                     ytdlpUrl = pageUrl,
                     ytdlpFormat = selector,
                 )
@@ -275,8 +277,15 @@ object YtDlp {
             addOption("-o", File(outDir, "%(title).90B [%(id)s].%(ext)s").absolutePath)
             addOption("--no-playlist")
             addOption("--no-mtime")
-            addOption("--concurrent-fragments", 4)
+            addOption("--concurrent-fragments", Prefs.connections.coerceIn(1, 8))
             addOption("--newline")
+            // Reprise : on garde les morceaux déjà reçus et on réessaie longtemps si le réseau tombe.
+            addOption("--continue")
+            addOption("--retries", 30)
+            addOption("--fragment-retries", 50)
+            addOption("--retry-sleep", "exp=1:20")
+            addOption("--socket-timeout", 30)
+            Prefs.speedLimitKb.takeIf { it > 0 }?.let { addOption("--limit-rate", "${it}K") }
             headers.forEach { (k, v) -> addOption("--add-header", "$k:$v") }
             addCommands(args)
         }

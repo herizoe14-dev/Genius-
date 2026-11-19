@@ -355,7 +355,7 @@ private fun QualityRow(opt: VideoOption, selected: Boolean, onClick: () -> Unit)
         Spacer(Modifier.width(12.dp))
         Text(opt.label, fontWeight = FontWeight.Bold, fontSize = 16.sp, modifier = Modifier.width(76.dp))
         Text(opt.detail, color = TextDim, fontSize = 13.sp, modifier = Modifier.weight(1f), maxLines = 1)
-        if (opt.sizeBytes > 0) Text(DownloadManager.fmtSize(opt.sizeBytes), color = TextDim, fontSize = 13.sp)
+        if (opt.sizeBytes > 0) Text((if (opt.sizeApprox) "≈ " else "") + DownloadManager.fmtSize(opt.sizeBytes), color = TextDim, fontSize = 13.sp)
     }
 }
 

@@ -42,6 +42,8 @@ data class VideoOption(
     val label: String,
     val detail: String,
     val sizeBytes: Long = 0,
+    /** Taille estimée (flux HLS/DASH : la taille exacte n'est connue qu'à la fin). */
+    val sizeApprox: Boolean = false,
     val ytdlpUrl: String? = null,
     val ytdlpFormat: String? = null,
     val directUrl: String? = null,
