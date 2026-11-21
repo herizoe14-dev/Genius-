@@ -89,7 +89,8 @@ fun SettingsDialog(vm: MainViewModel, onDismiss: () -> Unit) {
                     limit = it; Prefs.speedLimitKb = it
                 }
                 Spacer(Modifier.height(10.dp))
-                Text("Genius ${BuildConfig.VERSION_NAME}", color = TextDim, fontSize = 13.sp)
+                Text("Genius", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                Text("Version: ${BuildConfig.VERSION_NAME}", color = TextDim, fontSize = 15.sp)
                 Spacer(Modifier.height(8.dp))
                 TextButton(onClick = { vm.updateEngine() }, enabled = !updating) {
                     if (updating) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp, color = Cyan)
