@@ -6,6 +6,8 @@ import android.graphics.Bitmap
 import android.net.Uri
 import android.os.Bundle
 import android.os.Message
+import android.os.Parcel
+import android.webkit.WebStorage
 import android.view.View
 import android.view.ViewGroup
 import android.webkit.CookieManager
@@ -66,6 +68,16 @@ import androidx.compose.material.icons.rounded.MusicNote
 import androidx.compose.material.icons.rounded.RadioButtonUnchecked
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Shield
+import androidx.compose.material.icons.rounded.MoreVert
+import androidx.compose.material.icons.rounded.Star
+import androidx.compose.material.icons.rounded.StarBorder
+import androidx.compose.material.icons.rounded.History
+import androidx.compose.material.icons.rounded.DeleteSweep
+import androidx.compose.material.icons.rounded.Tab
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -106,6 +118,7 @@ import com.genius.downloader.download.MediaKind
 import com.genius.downloader.download.MediaSaver
 import com.genius.downloader.engine.AdFilter
 import com.genius.downloader.engine.Analyzer
+import com.genius.downloader.engine.BrowserStore
 import com.genius.downloader.engine.Hls
 import com.genius.downloader.engine.HlsInfo
 import com.genius.downloader.engine.MediaResult
@@ -126,6 +139,11 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.ByteArrayInputStream
+import java.io.File
+import java.text.SimpleDateFormat
+import java.util.Calendar
+import java.util.Date
+import java.util.Locale
 
 /** Un flux vidéo repéré pendant la navigation. */
 data class DetectedStream(val url: String, val kind: String, val referer: String?, val title: String) {
@@ -170,7 +188,12 @@ class SnifferActivity : ComponentActivity() {
         var progress by mutableIntStateOf(0)
         @Volatile var pageUrl: String? = null
         @Volatile var pageTitle: String = ""
+        /** Onglet restauré pas encore affiché : chargé seulement quand on l'ouvre (comme Chrome). */
+        var pendingState: Bundle? = null
+        var pendingUrl: String? = null
     }
+
+    private enum class ListMode { History, Bookmarks }
 
     private lateinit var container: FrameLayout
     private var customView: View? = null
@@ -192,20 +215,30 @@ class SnifferActivity : ComponentActivity() {
     private var panel by mutableStateOf<Panel>(Panel.None)
     private var fullscreen by mutableStateOf(false)
     private var showTabs by mutableStateOf(false)
+    private var listMode by mutableStateOf<ListMode?>(null)
+    private var starred by mutableStateOf(false)
+    private var editingAddress by mutableStateOf(false)
+    private var confirmClear by mutableStateOf(false)
+    /** Change à chaque modification de l'historique/des favoris pour rafraîchir l'affichage. */
+    private var storeVersion by mutableIntStateOf(0)
     private var analyzeJob: Job? = null
 
     @SuppressLint("SetJavaScriptEnabled", "JavascriptInterface")
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
-        val start = intent.getStringExtra(EXTRA_URL)?.takeIf { it.isNotBlank() } ?: HOME
+        BrowserStore.init(filesDir)
+        val extra = intent.getStringExtra(EXTRA_URL)?.takeIf { it.isNotBlank() }
         container = FrameLayout(this)
-        newTab(start)
+        // Reprend les onglets de la dernière fois (avec leur historique Précédent/Suivant).
+        if (!restoreSession()) newTab(extra ?: HOME) else extra?.let { newTab(it) }
 
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
                 when {
                     customView != null -> exitFullscreen()
+                    confirmClear -> confirmClear = false
+                    listMode != null -> listMode = null
                     showTabs -> showTabs = false
                     panel != Panel.None -> closePanel()
                     web.canGoBack() -> web.goBack()
@@ -216,6 +249,87 @@ class SnifferActivity : ComponentActivity() {
         })
 
         setContent { GeniusTheme { Screen() } }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        intent.getStringExtra(EXTRA_URL)?.takeIf { it.isNotBlank() }?.let { newTab(it) }
+    }
+
+    override fun onPause() {
+        saveSession()
+        super.onPause()
+    }
+
+    // ------------------------------------------------------------------ mémoire (onglets, cookies)
+
+    /** Enregistre les onglets, leur historique, l'historique global et les cookies (connexions aux sites). */
+    private fun saveSession() {
+        if (tabs.isEmpty()) return
+        val dir = BrowserStore.stateDir()
+        dir?.listFiles()?.forEach { it.delete() }
+        val pages = tabs.mapIndexed { i, t ->
+            if (dir != null) {
+                val state = t.pendingState ?: if (t.pendingUrl == null) Bundle().takeIf { t.web.saveState(it) != null } else null
+                state?.let { writeBundle(File(dir, "$i.bin"), it) }
+            }
+            BrowserStore.Page(t.url.ifBlank { t.pendingUrl ?: HOME }, t.title)
+        }
+        BrowserStore.saveTabs(pages, currentIndex)
+        BrowserStore.save()
+        CookieManager.getInstance().flush()
+    }
+
+    private fun restoreSession(): Boolean {
+        val saved = BrowserStore.loadTabs() ?: return false
+        val dir = BrowserStore.stateDir()
+        saved.tabs.forEachIndexed { i, page ->
+            val tab = BrowserTab(createWebView())
+            tab.title = page.title.ifBlank { "Nouvel onglet" }
+            tab.url = page.url; tab.pageUrl = page.url; tab.pageTitle = page.title
+            tab.pendingState = dir?.let { readBundle(File(it, "$i.bin")) }
+            tab.pendingUrl = page.url
+            tabs.add(tab)
+        }
+        selectTab(saved.current)
+        return true
+    }
+
+    private fun writeBundle(file: File, bundle: Bundle) {
+        val p = Parcel.obtain()
+        try { p.writeBundle(bundle); file.writeBytes(p.marshall()) } catch (_: Throwable) { file.delete() } finally { p.recycle() }
+    }
+
+    private fun readBundle(file: File): Bundle? {
+        if (!file.exists()) return null
+        val p = Parcel.obtain()
+        return try {
+            val bytes = file.readBytes()
+            p.unmarshall(bytes, 0, bytes.size); p.setDataPosition(0)
+            p.readBundle(javaClass.classLoader)
+        } catch (_: Throwable) { null } finally { p.recycle() }
+    }
+
+    /** Charge un onglet restauré au moment où il devient visible. */
+    private fun wake(tab: BrowserTab) {
+        val state = tab.pendingState
+        val url = tab.pendingUrl ?: return
+        tab.pendingState = null; tab.pendingUrl = null
+        val ok = state != null && runCatching { tab.web.restoreState(state) != null }.getOrDefault(false)
+        if (!ok) tab.web.loadUrl(url)
+    }
+
+    private fun refreshStar() { starred = tabs.isNotEmpty() && BrowserStore.isBookmarked(current.url) }
+
+    /** Efface l'historique, les cookies, le cache et les données des sites. */
+    private fun clearBrowsingData() {
+        BrowserStore.clearHistory()
+        CookieManager.getInstance().removeAllCookies(null)
+        CookieManager.getInstance().flush()
+        WebStorage.getInstance().deleteAllData()
+        tabs.forEach { it.web.clearCache(true); it.web.clearHistory(); it.web.clearFormData() }
+        storeVersion++
+        toast("Données de navigation effacées")
     }
 
     // ------------------------------------------------------------------ onglets
@@ -231,8 +345,10 @@ class SnifferActivity : ComponentActivity() {
         currentIndex = index.coerceIn(0, tabs.lastIndex)
         container.removeAllViews()
         container.addView(web, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
+        wake(current)
         address = current.url
         updateNav()
+        refreshStar()
         panel = Panel.None
     }
 
@@ -284,6 +400,7 @@ class SnifferActivity : ComponentActivity() {
             override fun onProgressChanged(view: WebView?, newProgress: Int) { tabOf(view)?.progress = newProgress }
             override fun onReceivedTitle(view: WebView?, title: String?) {
                 tabOf(view)?.let { it.title = title.orEmpty().ifBlank { it.title }; it.pageTitle = it.title }
+                view?.url?.let { BrowserStore.updateTitle(it, title.orEmpty()) }
             }
 
             // Nouvelle fenêtre demandée par un lien : ouverte dans un nouvel onglet (sauf pub).
@@ -317,7 +434,7 @@ class SnifferActivity : ComponentActivity() {
             private fun onUrl(view: WebView?, url: String?) {
                 val tab = tabOf(view) ?: return
                 url?.let { tab.url = it; tab.pageUrl = it }
-                if (isCurrent(view)) { url?.let { address = it }; updateNav() }
+                if (isCurrent(view)) { url?.let { if (!editingAddress) address = it }; updateNav(); refreshStar() }
             }
 
             override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) = onUrl(view, url)
@@ -326,6 +443,7 @@ class SnifferActivity : ComponentActivity() {
                 view?.evaluateJavascript(AdFilter.COSMETIC_JS, null)
                 view?.evaluateJavascript(SCAN_JS, null)
                 onUrl(view, url)
+                url?.let { BrowserStore.addVisit(it, view?.title.orEmpty()) }
             }
 
             override fun doUpdateVisitedHistory(view: WebView?, url: String?, isReload: Boolean) = onUrl(view, url)
@@ -468,6 +586,7 @@ class SnifferActivity : ComponentActivity() {
         Box(Modifier.fillMaxSize().background(Bg).statusBarsPadding().navigationBarsPadding().imePadding()) {
             Column(Modifier.fillMaxSize()) {
                 if (!fullscreen) TopBar(active)
+                if (!fullscreen && editingAddress) Suggestions()
                 if (!fullscreen && pageProgress in 1..99) {
                     LinearProgressIndicator(
                         progress = { pageProgress / 100f }, modifier = Modifier.fillMaxWidth().height(2.dp),
@@ -502,6 +621,15 @@ class SnifferActivity : ComponentActivity() {
             }
 
             if (showTabs) TabsOverlay()
+            listMode?.let { PagesOverlay(it) }
+            if (confirmClear) AlertDialog(
+                onDismissRequest = { confirmClear = false },
+                containerColor = Surface1,
+                title = { Text("Effacer les données ?", color = Color.White) },
+                text = { Text("Historique, cookies (vous serez déconnecté des sites), cache et données des sites. Les favoris et les onglets sont conservés.", color = TextDim) },
+                confirmButton = { TextButton(onClick = { confirmClear = false; clearBrowsingData() }) { Text("Effacer", color = Danger) } },
+                dismissButton = { TextButton(onClick = { confirmClear = false }) { Text("Annuler", color = TextDim) } },
+            )
 
             if (panel != Panel.None) {
                 Box(
@@ -579,20 +707,34 @@ class SnifferActivity : ComponentActivity() {
 
     @Composable
     private fun TopBar(active: Int) {
-        var editing by remember { mutableStateOf(false) }
+        val focus = LocalFocusManager.current
         Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
             OutlinedTextField(
-                value = if (editing) address else displayAddress(address),
+                value = if (editingAddress) address else displayAddress(address),
                 onValueChange = { address = it },
                 singleLine = true,
                 placeholder = { Text("Rechercher sur Google ou saisir une adresse", fontSize = 13.sp, color = TextDim) },
-                modifier = Modifier.weight(1f).height(52.dp).onFocusChanged { editing = it.isFocused },
+                modifier = Modifier.weight(1f).height(52.dp).onFocusChanged {
+                    if (it.isFocused && !editingAddress) address = current.url
+                    editingAddress = it.isFocused
+                },
                 shape = RoundedCornerShape(26.dp),
                 textStyle = TextStyle(fontSize = 14.sp, color = Color.White),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri, imeAction = ImeAction.Go),
                 keyboardActions = KeyboardActions(onGo = {
-                    streams.clear(); web.loadUrl(toUrl(address)); web.requestFocus()
+                    streams.clear(); web.loadUrl(toUrl(address)); focus.clearFocus(); web.requestFocus()
                 }),
+                trailingIcon = {
+                    if (!editingAddress) IconButton(onClick = {
+                        val on = BrowserStore.toggleBookmark(current.url, current.title)
+                        starred = on; storeVersion++
+                        toast(if (on) "Ajouté aux favoris" else "Retiré des favoris")
+                    }) {
+                        Icon(if (starred) Icons.Rounded.Star else Icons.Rounded.StarBorder, "Favori", tint = if (starred) Cyan else TextDim)
+                    } else if (address.isNotEmpty()) IconButton(onClick = { address = "" }) {
+                        Icon(Icons.Rounded.Close, "Effacer", tint = TextDim)
+                    }
+                },
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = Cyan, unfocusedBorderColor = Color(0xFF2A2A38),
                     focusedContainerColor = Surface2, unfocusedContainerColor = Surface2, cursorColor = Cyan,
@@ -648,9 +790,147 @@ class SnifferActivity : ComponentActivity() {
                     contentAlignment = Alignment.Center,
                 ) { Text("${tabs.size}", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold) }
             }
-            IconButton(onClick = { finish() }) { Icon(Icons.Rounded.Close, "Fermer", tint = TextDim) }
+            Box {
+                var menu by remember { mutableStateOf(false) }
+                IconButton(onClick = { menu = true }) { Icon(Icons.Rounded.MoreVert, "Menu", tint = Color.White) }
+                DropdownMenu(expanded = menu, onDismissRequest = { menu = false }, containerColor = Surface2) {
+                    @Composable
+                    fun item(text: String, icon: androidx.compose.ui.graphics.vector.ImageVector, action: () -> Unit) =
+                        DropdownMenuItem(
+                            text = { Text(text, color = Color.White) },
+                            leadingIcon = { Icon(icon, null, tint = Cyan) },
+                            onClick = { menu = false; action() },
+                        )
+                    item("Nouvel onglet", Icons.Rounded.Add) { newTab() }
+                    item(if (starred) "Retirer des favoris" else "Ajouter aux favoris", if (starred) Icons.Rounded.Star else Icons.Rounded.StarBorder) {
+                        starred = BrowserStore.toggleBookmark(current.url, current.title); storeVersion++
+                    }
+                    item("Favoris", Icons.Rounded.Star) { listMode = ListMode.Bookmarks }
+                    item("Historique", Icons.Rounded.History) { listMode = ListMode.History }
+                    item("Onglets", Icons.Rounded.Tab) { showTabs = true }
+                    item("Effacer les données", Icons.Rounded.DeleteSweep) { confirmClear = true }
+                    item("Fermer le navigateur", Icons.Rounded.Close) { finish() }
+                }
+            }
         }
     }
+
+    /** Suggestions sous la barre d'adresse (favoris + historique), comme Chrome. */
+    @Composable
+    private fun Suggestions() {
+        val focus = LocalFocusManager.current
+        val list = remember(address, storeVersion) { BrowserStore.suggest(address) }
+        if (list.isEmpty()) return
+        Column(Modifier.fillMaxWidth().background(Surface1).padding(vertical = 4.dp)) {
+            list.forEach { p ->
+                val fav = BrowserStore.isBookmarked(p.url)
+                Row(
+                    Modifier.fillMaxWidth().clickable {
+                        streams.clear(); web.loadUrl(p.url); focus.clearFocus(); web.requestFocus()
+                    }.padding(horizontal = 16.dp, vertical = 9.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(if (fav) Icons.Rounded.Star else Icons.Rounded.History, null, tint = if (fav) Cyan else TextDim, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(12.dp))
+                    Column(Modifier.weight(1f)) {
+                        Text(p.title.ifBlank { displayAddress(p.url) }, color = Color.White, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Text(displayAddress(p.url), color = TextDim, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    }
+                }
+            }
+        }
+    }
+
+    /** Écran Historique ou Favoris. */
+    @Composable
+    private fun PagesOverlay(mode: ListMode) {
+        var query by remember { mutableStateOf("") }
+        val pages = remember(mode, storeVersion, query) {
+            val all = if (mode == ListMode.History) BrowserStore.history else BrowserStore.bookmarks
+            val q = query.trim().lowercase()
+            if (q.isEmpty()) all else all.filter { (it.title + " " + it.url).lowercase().contains(q) }
+        }
+        Column(Modifier.fillMaxSize().background(Bg).padding(16.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    if (mode == ListMode.History) "Historique" else "Favoris",
+                    fontWeight = FontWeight.Bold, fontSize = 20.sp, color = Color.White, modifier = Modifier.weight(1f),
+                )
+                if (mode == ListMode.History && pages.isNotEmpty()) TextButton(onClick = { BrowserStore.clearHistory(); storeVersion++ }) {
+                    Text("Tout effacer", color = Danger)
+                }
+                IconButton(onClick = { listMode = null }) { Icon(Icons.Rounded.Close, "Fermer", tint = TextDim) }
+            }
+            OutlinedTextField(
+                value = query, onValueChange = { query = it }, singleLine = true,
+                placeholder = { Text("Rechercher", color = TextDim, fontSize = 14.sp) },
+                modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+                shape = RoundedCornerShape(24.dp),
+                textStyle = TextStyle(fontSize = 14.sp, color = Color.White),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = Cyan, unfocusedBorderColor = Color(0xFF2A2A38),
+                    focusedContainerColor = Surface2, unfocusedContainerColor = Surface2, cursorColor = Cyan,
+                ),
+            )
+            if (pages.isEmpty()) {
+                Text(
+                    if (mode == ListMode.History) "Aucune page visitée." else "Aucun favori. Touchez ☆ dans la barre d'adresse pour en ajouter.",
+                    color = TextDim, fontSize = 14.sp, modifier = Modifier.padding(top = 24.dp),
+                )
+            }
+            LazyColumn(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                var lastDay = ""
+                pages.forEach { p ->
+                    if (mode == ListMode.History) {
+                        val day = dayLabel(p.time)
+                        if (day != lastDay) {
+                            lastDay = day
+                            item(key = "d$day") {
+                                Text(day, color = Cyan, fontWeight = FontWeight.Bold, fontSize = 13.sp, modifier = Modifier.padding(top = 12.dp, bottom = 4.dp))
+                            }
+                        }
+                    }
+                    item(key = p.url) {
+                        Row(
+                            Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp))
+                                .clickable { listMode = null; streams.clear(); web.loadUrl(p.url) }
+                                .padding(start = 8.dp, top = 6.dp, bottom = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Icon(Icons.Rounded.Public, null, tint = TextDim, modifier = Modifier.size(20.dp))
+                            Spacer(Modifier.width(12.dp))
+                            Column(Modifier.weight(1f)) {
+                                Text(p.title.ifBlank { displayAddress(p.url) }, color = Color.White, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                Text(
+                                    (if (mode == ListMode.History) timeOf(p.time) + " · " else "") + displayAddress(p.url),
+                                    color = TextDim, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                                )
+                            }
+                            IconButton(onClick = {
+                                if (mode == ListMode.History) BrowserStore.removeVisit(p.url) else BrowserStore.removeBookmark(p.url)
+                                storeVersion++; refreshStar()
+                            }) { Icon(Icons.Rounded.Close, "Supprimer", tint = TextDim) }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private fun dayLabel(time: Long): String {
+        val c = Calendar.getInstance()
+        val today = c.get(Calendar.YEAR) * 1000 + c.get(Calendar.DAY_OF_YEAR)
+        c.add(Calendar.DAY_OF_YEAR, -1)
+        val yesterday = c.get(Calendar.YEAR) * 1000 + c.get(Calendar.DAY_OF_YEAR)
+        c.timeInMillis = time
+        return when (c.get(Calendar.YEAR) * 1000 + c.get(Calendar.DAY_OF_YEAR)) {
+            today -> "Aujourd'hui"
+            yesterday -> "Hier"
+            else -> SimpleDateFormat("EEEE d MMMM yyyy", Locale.FRENCH).format(Date(time)).replaceFirstChar { it.uppercase() }
+        }
+    }
+
+    private fun timeOf(time: Long) = SimpleDateFormat("HH:mm", Locale.FRENCH).format(Date(time))
 
     @Composable
     private fun ColumnScope.StreamList() {
@@ -800,6 +1080,7 @@ class SnifferActivity : ComponentActivity() {
 
     override fun onDestroy() {
         analyzeJob?.cancel()
+        BrowserStore.save()
         tabs.forEach { it.web.destroy() }
         super.onDestroy()
     }

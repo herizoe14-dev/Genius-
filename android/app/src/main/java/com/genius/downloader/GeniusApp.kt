@@ -4,6 +4,7 @@ import android.app.Application
 import android.util.Log
 import com.genius.downloader.download.DownloadManager
 import com.genius.downloader.engine.Accounts
+import com.genius.downloader.engine.BrowserStore
 import com.genius.downloader.engine.YtDlp
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -18,6 +19,7 @@ class GeniusApp : Application() {
         Prefs.init(this)
         DownloadManager.init(this)
         Accounts.init(this)
+        BrowserStore.init(filesDir)
         appScope.launch {
             // Décompresse python + yt-dlp + ffmpeg (quelques secondes au 1er lancement).
             YtDlp.init(this@GeniusApp)

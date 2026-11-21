@@ -12,8 +12,8 @@ android {
         applicationId = "com.genius.downloader"
         minSdk = 26
         targetSdk = 35
-        versionCode = 7
-        versionName = "0.0.0"
+        versionCode = 8
+        versionName = "0.0.1"
     }
 
     // Un APK par architecture (+ un APK universel) : les binaires python/ffmpeg sont lourds.
