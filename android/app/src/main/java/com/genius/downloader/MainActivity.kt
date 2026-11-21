@@ -16,6 +16,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Download
 import androidx.compose.material.icons.rounded.Home
 import androidx.compose.material.icons.rounded.Settings
+import androidx.compose.material.icons.rounded.TravelExplore
+import com.genius.downloader.ui.SnifferActivity
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.CenterAlignedTopAppBar
@@ -160,6 +162,12 @@ private fun Root(vm: MainViewModel, tab: Int, onTab: (Int) -> Unit) {
                 NavigationBarItem(
                     selected = tab == 0, onClick = { onTab(0) },
                     icon = { Icon(Icons.Rounded.Home, null) }, label = { Text("Accueil") }, colors = colors,
+                )
+                // Accès direct au navigateur Genius (page d'accueil Google)
+                NavigationBarItem(
+                    selected = false,
+                    onClick = { ctx.startActivity(Intent(ctx, SnifferActivity::class.java)) },
+                    icon = { Icon(Icons.Rounded.TravelExplore, null) }, label = { Text("Navigateur") }, colors = colors,
                 )
                 NavigationBarItem(
                     selected = tab == 1, onClick = { onTab(1) },
