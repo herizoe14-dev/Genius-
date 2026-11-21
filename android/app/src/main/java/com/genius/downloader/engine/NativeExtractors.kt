@@ -224,7 +224,7 @@ object NativeExtractors {
         runCatching { return instagramGraphql(url, code) }.onFailure { errors += it.message.orEmpty() }
         throw ExtractionException(
             if (Accounts.isLoggedIn(Account.INSTAGRAM)) "Instagram : ${errors.first()}"
-            else "Instagram bloque l'accès sans compte. Connectez-vous dans Réglages › Comptes › Instagram.",
+            else "Instagram bloque l'accès sans compte. Connectez-vous à Instagram dans le navigateur Genius, puis réessayez.",
         )
     }
 
@@ -359,7 +359,7 @@ object NativeExtractors {
             return runCatching { openGraph(url) }.getOrElse {
                 throw ExtractionException(
                     if (Accounts.isLoggedIn(Account.FACEBOOK)) "Facebook : aucun média trouvé"
-                    else "Facebook bloque l'accès sans compte. Connectez-vous dans Réglages › Comptes › Facebook.",
+                    else "Facebook bloque l'accès sans compte. Connectez-vous à Facebook dans le navigateur Genius, puis réessayez.",
                 )
             }
         }

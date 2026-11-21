@@ -55,7 +55,6 @@ fun SettingsDialog(vm: MainViewModel, onDismiss: () -> Unit) {
     var mp3 by remember { mutableStateOf(Prefs.audioMp3) }
     var auto by remember { mutableStateOf(Prefs.autoUpdate) }
     var paste by remember { mutableStateOf(Prefs.autoPaste) }
-    val version = remember(updating) { vm.engineVersion() }
     val ctx = LocalContext.current
     // Rafraîchit l'état des comptes au retour de l'écran de connexion.
     var tick by remember { mutableIntStateOf(0) }
@@ -90,23 +89,6 @@ fun SettingsDialog(vm: MainViewModel, onDismiss: () -> Unit) {
                     limit = it; Prefs.speedLimitKb = it
                 }
                 Spacer(Modifier.height(10.dp))
-                Text("Comptes (pour les posts photo Instagram / Facebook)", color = TextDim, fontSize = 13.sp)
-                Account.entries.forEach { acc ->
-                    val logged = remember(tick, acc) { Accounts.isLoggedIn(acc) }
-                    Row(Modifier.fillMaxWidth().padding(vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Text(acc.label, Modifier.weight(1f), fontSize = 15.sp)
-                        if (logged) {
-                            Text("connecté ", color = Success, fontSize = 12.sp)
-                            TextButton(onClick = { Accounts.logout(acc); tick++ }) { Text("Déconnexion", color = TextDim) }
-                        } else {
-                            TextButton(onClick = {
-                                ctx.startActivity(Intent(ctx, LoginActivity::class.java).putExtra(LoginActivity.EXTRA_ACCOUNT, acc.name))
-                            }) { Text("Se connecter", color = Cyan) }
-                        }
-                    }
-                }
-                Spacer(Modifier.height(12.dp))
-                Text("Moteur : yt-dlp $version", color = TextDim, fontSize = 13.sp)
                 Text("Genius ${BuildConfig.VERSION_NAME}", color = TextDim, fontSize = 13.sp)
                 Spacer(Modifier.height(8.dp))
                 TextButton(onClick = { vm.updateEngine() }, enabled = !updating) {

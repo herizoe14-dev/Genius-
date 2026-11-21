@@ -56,6 +56,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.automirrored.rounded.ArrowForward
 import androidx.compose.material.icons.rounded.CheckCircle
+import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.Public
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Download
 import androidx.compose.material.icons.rounded.Home
@@ -160,42 +162,54 @@ private sealed interface Panel {
  * - fenêtre flottante de téléchargement (titre, durée, morceaux, taille, qualité).
  */
 class SnifferActivity : ComponentActivity() {
-    private lateinit var web: WebView
+    /** Un onglet du navigateur : sa page et les vidéos détectées dedans. */
+    private inner class BrowserTab(val web: WebView) {
+        val streams = mutableStateListOf<DetectedStream>()
+        var title by mutableStateOf("Nouvel onglet")
+        var url by mutableStateOf("")
+        var progress by mutableIntStateOf(0)
+        @Volatile var pageUrl: String? = null
+        @Volatile var pageTitle: String = ""
+    }
+
     private lateinit var container: FrameLayout
     private var customView: View? = null
     private var customCallback: WebChromeClient.CustomViewCallback? = null
 
-    private val streams = mutableStateListOf<DetectedStream>()
+    private val tabs = mutableStateListOf<BrowserTab>()
+    private var currentIndex by mutableIntStateOf(0)
+    private val current: BrowserTab get() = tabs[currentIndex.coerceIn(0, tabs.lastIndex)]
+    private val web: WebView get() = current.web
+    private val streams get() = current.streams
+    private val pageTitle get() = current.title
+    private val pageProgress get() = current.progress
+    private val currentPage get() = current.pageUrl
+
     private var address by mutableStateOf("")
-    private var pageProgress by mutableIntStateOf(0)
-    private var pageTitle by mutableStateOf("")
     private var canBack by mutableStateOf(false)
     private var canForward by mutableStateOf(false)
     private var filtered by mutableIntStateOf(0)
     private var panel by mutableStateOf<Panel>(Panel.None)
     private var fullscreen by mutableStateOf(false)
+    private var showTabs by mutableStateOf(false)
     private var analyzeJob: Job? = null
-    @Volatile private var currentPage: String? = null
-    @Volatile private var currentTitle: String = ""
 
     @SuppressLint("SetJavaScriptEnabled", "JavascriptInterface")
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
         val start = intent.getStringExtra(EXTRA_URL)?.takeIf { it.isNotBlank() } ?: HOME
-        address = start
-
         container = FrameLayout(this)
-        web = createWebView()
-        container.addView(web, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
-        web.loadUrl(toUrl(start))
+        newTab(start)
 
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
                 when {
                     customView != null -> exitFullscreen()
+                    showTabs -> showTabs = false
                     panel != Panel.None -> closePanel()
                     web.canGoBack() -> web.goBack()
+                    tabs.size > 1 -> closeTab(currentIndex)
                     else -> finish()
                 }
             }
@@ -204,10 +218,39 @@ class SnifferActivity : ComponentActivity() {
         setContent { GeniusTheme { Screen() } }
     }
 
+    // ------------------------------------------------------------------ onglets
+
+    private fun newTab(url: String = HOME) {
+        val tab = BrowserTab(createWebView())
+        tabs.add(tab)
+        selectTab(tabs.lastIndex)
+        tab.web.loadUrl(toUrl(url))
+    }
+
+    private fun selectTab(index: Int) {
+        currentIndex = index.coerceIn(0, tabs.lastIndex)
+        container.removeAllViews()
+        container.addView(web, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
+        address = current.url
+        updateNav()
+        panel = Panel.None
+    }
+
+    private fun closeTab(index: Int) {
+        val tab = tabs.getOrNull(index) ?: return
+        tabs.removeAt(index)
+        tab.web.destroy()
+        if (tabs.isEmpty()) newTab() else selectTab(if (currentIndex >= tabs.size) tabs.lastIndex else currentIndex.coerceAtMost(tabs.lastIndex))
+    }
+
+    private fun tabOf(view: WebView?): BrowserTab? = tabs.firstOrNull { it.web === view }
+
+    private fun isCurrent(view: WebView?) = tabs.isNotEmpty() && view === web
+
     // ------------------------------------------------------------------ WebView
 
-    @SuppressLint("SetJavaScriptEnabled")
-    private fun createWebView() = WebView(this).apply {
+    @SuppressLint("SetJavaScriptEnabled", "JavascriptInterface")
+    private fun createWebView(): WebView = WebView(this).apply {
         settings.apply {
             javaScriptEnabled = true
             domStorageEnabled = true
@@ -225,30 +268,32 @@ class SnifferActivity : ComponentActivity() {
         }
         CookieManager.getInstance().setAcceptCookie(true)
         CookieManager.getInstance().setAcceptThirdPartyCookies(this, true)
-        addJavascriptInterface(Bridge(), "GeniusSniffer")
+        val self = this
+        addJavascriptInterface(Bridge(self), "GeniusSniffer")
 
         // Liens de fichiers (vidéo, zip, apk…) : proposés au téléchargement.
         setDownloadListener { url, _, contentDisposition, mimeType, _ ->
+            val tab = tabOf(self) ?: return@setDownloadListener
             val name = URLUtil.guessFileName(url, contentDisposition, mimeType)
             val kind = if (mimeType?.startsWith("video") == true) "MP4" else "Fichier"
-            addStream(DetectedStream(url, kind, currentPage, name.substringBeforeLast('.')), front = true)
-            panel = Panel.Streams
+            addStream(tab, DetectedStream(url, kind, tab.pageUrl, name.substringBeforeLast('.')), front = true)
+            if (tab === current) panel = Panel.Streams
         }
 
         webChromeClient = object : WebChromeClient() {
-            override fun onProgressChanged(view: WebView?, newProgress: Int) { pageProgress = newProgress }
+            override fun onProgressChanged(view: WebView?, newProgress: Int) { tabOf(view)?.progress = newProgress }
             override fun onReceivedTitle(view: WebView?, title: String?) {
-                pageTitle = title.orEmpty(); currentTitle = pageTitle
+                tabOf(view)?.let { it.title = title.orEmpty().ifBlank { it.title }; it.pageTitle = it.title }
             }
 
-            // Nouvelles fenêtres : ouvertes dans l'onglet si ce n'est pas une pub, sinon ignorées.
+            // Nouvelle fenêtre demandée par un lien : ouverte dans un nouvel onglet (sauf pub).
             override fun onCreateWindow(view: WebView?, isDialog: Boolean, isUserGesture: Boolean, resultMsg: Message?): Boolean {
                 if (!isUserGesture) { filtered++; return false }
                 val probe = WebView(this@SnifferActivity)
                 probe.webViewClient = object : WebViewClient() {
                     override fun shouldOverrideUrlLoading(v: WebView?, request: WebResourceRequest?): Boolean {
                         val target = request?.url?.toString().orEmpty()
-                        if (target.startsWith("http") && !AdFilter.isAd(target)) web.loadUrl(target) else filtered++
+                        if (target.startsWith("http") && !AdFilter.isAd(target)) newTab(target) else filtered++
                         v?.destroy()
                         return true
                     }
@@ -269,21 +314,21 @@ class SnifferActivity : ComponentActivity() {
         }
 
         webViewClient = object : WebViewClient() {
-            override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) {
-                url?.let { address = it; currentPage = it }
-                updateNav()
+            private fun onUrl(view: WebView?, url: String?) {
+                val tab = tabOf(view) ?: return
+                url?.let { tab.url = it; tab.pageUrl = it }
+                if (isCurrent(view)) { url?.let { address = it }; updateNav() }
             }
+
+            override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) = onUrl(view, url)
 
             override fun onPageFinished(view: WebView?, url: String?) {
                 view?.evaluateJavascript(AdFilter.COSMETIC_JS, null)
                 view?.evaluateJavascript(SCAN_JS, null)
-                updateNav()
+                onUrl(view, url)
             }
 
-            override fun doUpdateVisitedHistory(view: WebView?, url: String?, isReload: Boolean) {
-                url?.let { address = it; currentPage = it }
-                updateNav()
-            }
+            override fun doUpdateVisitedHistory(view: WebView?, url: String?, isReload: Boolean) = onUrl(view, url)
 
             override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
                 val uri = request?.url ?: return false
@@ -306,13 +351,14 @@ class SnifferActivity : ComponentActivity() {
                     runOnUiThread { filtered++ }
                     return EMPTY()
                 }
-                inspect(url, r.requestHeaders["Referer"])
+                inspect(view, url, r.requestHeaders["Referer"])
                 return null
             }
         }
     }
 
     private fun updateNav() {
+        if (tabs.isEmpty()) return
         canBack = web.canGoBack(); canForward = web.canGoForward()
     }
 
@@ -348,23 +394,27 @@ class SnifferActivity : ComponentActivity() {
         }
     }
 
-    private fun inspect(url: String, referer: String?, fallbackKind: String? = null) {
+    /** Appelé depuis le thread réseau de la WebView : retrouve l'onglet sur le thread principal. */
+    private fun inspect(view: WebView?, url: String, referer: String?, fallbackKind: String? = null) {
         if (!url.startsWith("http")) return
         val kind = classify(url) ?: fallbackKind ?: return
         if (AdFilter.isAd(url)) return
-        val s = DetectedStream(url, kind, referer ?: currentPage, currentTitle)
-        runOnUiThread { addStream(s, front = kind == "HLS" && "master" in url.lowercase()) }
+        runOnUiThread {
+            val tab = tabOf(view) ?: return@runOnUiThread
+            val s = DetectedStream(url, kind, referer ?: tab.pageUrl, tab.pageTitle)
+            addStream(tab, s, front = kind == "HLS" && "master" in url.lowercase())
+        }
     }
 
-    private fun addStream(s: DetectedStream, front: Boolean) {
+    private fun addStream(tab: BrowserTab, s: DetectedStream, front: Boolean) {
         val key = s.url.substringBefore('?')
-        if (streams.any { it.url.substringBefore('?') == key }) return
-        if (front) streams.add(0, s) else streams.add(s)
+        if (tab.streams.any { it.url.substringBefore('?') == key }) return
+        if (front) tab.streams.add(0, s) else tab.streams.add(s)
     }
 
-    private inner class Bridge {
+    private inner class Bridge(private val owner: WebView) {
         @JavascriptInterface
-        fun found(url: String) = inspect(url, currentPage, fallbackKind = "Vidéo")
+        fun found(url: String) = inspect(owner, url, null, fallbackKind = "Vidéo")
     }
 
     private fun headersFor(s: DetectedStream): Map<String, String> = buildMap {
@@ -451,6 +501,8 @@ class SnifferActivity : ComponentActivity() {
                 }
             }
 
+            if (showTabs) TabsOverlay()
+
             if (panel != Panel.None) {
                 Box(
                     Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.55f)).clickable { closePanel() },
@@ -474,6 +526,51 @@ class SnifferActivity : ComponentActivity() {
                             is Panel.Failed -> FailedPanel(p)
                             Panel.None -> Unit
                         }
+                    }
+                }
+            }
+        }
+    }
+
+    @Composable
+    private fun TabsOverlay() {
+        Column(Modifier.fillMaxSize().background(Bg).padding(16.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("Onglets (${tabs.size})", fontWeight = FontWeight.Bold, fontSize = 20.sp, color = Color.White, modifier = Modifier.weight(1f))
+                Row(
+                    Modifier.clip(RoundedCornerShape(20.dp)).background(Cyan)
+                        .clickable { showTabs = false; newTab() }
+                        .padding(horizontal = 14.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(Icons.Rounded.Add, null, tint = Color.Black, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(4.dp))
+                    Text("Nouvel onglet", color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                }
+                IconButton(onClick = { showTabs = false }) { Icon(Icons.Rounded.Close, "Fermer", tint = TextDim) }
+            }
+            Spacer(Modifier.height(12.dp))
+            LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                items(tabs.toList().withIndex().toList(), key = { System.identityHashCode(it.value) }) { (i, tab) ->
+                    val selected = i == currentIndex
+                    Row(
+                        Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp))
+                            .background(if (selected) Cyan.copy(alpha = 0.1f) else Surface1)
+                            .border(1.dp, if (selected) Cyan else Color(0xFF22222F), RoundedCornerShape(16.dp))
+                            .clickable { selectTab(i); showTabs = false }
+                            .padding(start = 14.dp, top = 10.dp, bottom = 10.dp, end = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Icon(Icons.Rounded.Public, null, tint = if (selected) Cyan else TextDim, modifier = Modifier.size(20.dp))
+                        Spacer(Modifier.width(12.dp))
+                        Column(Modifier.weight(1f)) {
+                            Text(tab.title.ifBlank { "Nouvel onglet" }, color = Color.White, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            Text(displayAddress(tab.url), color = TextDim, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        }
+                        if (tab.streams.isNotEmpty()) {
+                            Text("${tab.streams.size} 🎬", color = Cyan, fontSize = 12.sp)
+                        }
+                        IconButton(onClick = { closeTab(i) }) { Icon(Icons.Rounded.Close, "Fermer l'onglet", tint = TextDim) }
                     }
                 }
             }
@@ -540,6 +637,16 @@ class SnifferActivity : ComponentActivity() {
                 Icon(Icons.Rounded.Shield, null, tint = Success, modifier = Modifier.size(18.dp))
                 Spacer(Modifier.width(4.dp))
                 Text("$filtered", color = TextDim, fontSize = 12.sp)
+            }
+            // Onglets : carré avec le nombre d'onglets ouverts
+            Box(
+                Modifier.size(40.dp).clip(RoundedCornerShape(10.dp)).clickable { showTabs = true },
+                contentAlignment = Alignment.Center,
+            ) {
+                Box(
+                    Modifier.size(24.dp).border(2.dp, Color.White, RoundedCornerShape(6.dp)),
+                    contentAlignment = Alignment.Center,
+                ) { Text("${tabs.size}", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold) }
             }
             IconButton(onClick = { finish() }) { Icon(Icons.Rounded.Close, "Fermer", tint = TextDim) }
         }
@@ -693,7 +800,7 @@ class SnifferActivity : ComponentActivity() {
 
     override fun onDestroy() {
         analyzeJob?.cancel()
-        web.destroy()
+        tabs.forEach { it.web.destroy() }
         super.onDestroy()
     }
 

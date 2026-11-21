@@ -115,39 +115,13 @@ fun HomeScreen(vm: MainViewModel, padding: PaddingValues) {
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         item {
-            OutlinedTextField(
-                value = input,
-                onValueChange = { vm.input.value = it },
-                modifier = Modifier.fillMaxWidth(),
-                placeholder = { Text("Collez un lien ici…", color = TextDim) },
-                singleLine = true,
-                shape = RoundedCornerShape(18.dp),
-                trailingIcon = {
-                    if (input.isNotEmpty()) {
-                        IconButton(onClick = { vm.reset() }) { Icon(Icons.Rounded.Close, "Effacer") }
-                    } else {
-                        IconButton(onClick = { clipboard.getText()?.text?.let { vm.input.value = it } }) {
-                            Icon(Icons.Rounded.ContentPaste, "Coller", tint = Cyan)
-                        }
-                    }
-                },
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = Cyan,
-                    unfocusedBorderColor = Color(0xFF2A2A38),
-                    focusedContainerColor = Surface1,
-                    unfocusedContainerColor = Surface1,
-                    cursorColor = Cyan,
-                ),
-            )
-        }
-
-        item {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 GlowButton(
                     loading = state is UiState.Loading,
                     onClick = {
-                        val text = input.ifBlank { clipboard.getText()?.text.orEmpty() }
-                        vm.analyze(text)
+                        // Pas de champ de saisie : on prend le lien copié (ou celui partagé vers l'app).
+                        val clip = clipboard.getText()?.text.orEmpty()
+                        vm.analyze(if (Analyzer.extractUrl(clip) != null) clip else input)
                     },
                 )
                 Text(
