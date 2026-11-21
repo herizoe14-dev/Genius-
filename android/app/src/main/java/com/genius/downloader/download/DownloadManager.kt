@@ -28,7 +28,13 @@ import kotlin.coroutines.coroutineContext
 /** Ce qu'il faut télécharger. */
 sealed interface DownloadJob {
     /** Téléchargement via yt-dlp (vidéo avec choix de qualité, audio, playlists…). */
-    data class YtDlpJob(val url: String, val args: List<String>, val headers: Map<String, String> = emptyMap()) : DownloadJob
+    data class YtDlpJob(
+        val url: String,
+        val args: List<String>,
+        val headers: Map<String, String> = emptyMap(),
+        /** Nom du fichier (sans extension) ; sinon le titre trouvé par yt-dlp. */
+        val fileTitle: String? = null,
+    ) : DownloadJob
 
     /** Fichier direct (image, vidéo sans filigrane déjà résolue…). */
     data class DirectJob(val url: String, val headers: Map<String, String>, val fileName: String) : DownloadJob
@@ -132,7 +138,7 @@ object DownloadManager {
                 val files = when (val job = task.job) {
                     is DownloadJob.YtDlpJob -> {
                         YtDlp.ready.await()
-                        YtDlp.download(job.url, workDir, job.args, job.headers, id) { p, line ->
+                        YtDlp.download(job.url, workDir, job.args, job.headers, id, job.fileTitle) { p, line ->
                             set(id) { it.copy(progress = (p / 100f).coerceIn(0f, 1f), info = prettyLine(line)) }
                         }
                     }

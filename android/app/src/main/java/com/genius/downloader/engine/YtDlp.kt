@@ -270,11 +270,13 @@ object YtDlp {
         args: List<String>,
         headers: Map<String, String>,
         processId: String,
+        fileTitle: String? = null,
         onProgress: (Float, String) -> Unit,
     ): List<File> {
         outDir.mkdirs()
         val req = baseRequest(url).apply {
-            addOption("-o", File(outDir, "%(title).90B [%(id)s].%(ext)s").absolutePath)
+            val name = fileTitle?.let { com.genius.downloader.download.MediaSaver.sanitize(it).replace("%", "%%") }
+            addOption("-o", File(outDir, if (name != null) "$name.%(ext)s" else "%(title).90B [%(id)s].%(ext)s").absolutePath)
             addOption("--no-playlist")
             addOption("--no-mtime")
             addOption("--concurrent-fragments", Prefs.connections.coerceIn(1, 8))

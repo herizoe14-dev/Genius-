@@ -38,12 +38,8 @@ import androidx.compose.material.icons.rounded.PlaylistPlay
 import androidx.compose.material.icons.rounded.RadioButtonUnchecked
 import androidx.compose.material.icons.rounded.Videocam
 import androidx.compose.material.icons.rounded.TravelExplore
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
-import android.app.Activity
 import android.content.Intent
 import com.genius.downloader.engine.Analyzer
-import org.json.JSONObject
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Checkbox
@@ -98,19 +94,9 @@ fun HomeScreen(vm: MainViewModel, padding: PaddingValues) {
     val engineReady by vm.engineReady.collectAsState()
     val clipboard = LocalClipboardManager.current
     val ctx = LocalContext.current
-    val sniffer = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { res ->
-        val data = res.data ?: return@rememberLauncherForActivityResult
-        if (res.resultCode != Activity.RESULT_OK) return@rememberLauncherForActivityResult
-        val stream = data.getStringExtra(SnifferActivity.RES_STREAM) ?: return@rememberLauncherForActivityResult
-        val headers = runCatching {
-            val o = JSONObject(data.getStringExtra(SnifferActivity.RES_HEADERS).orEmpty())
-            o.keys().asSequence().associateWith { o.getString(it) }
-        }.getOrDefault(emptyMap())
-        vm.analyzeStream(stream, headers, data.getStringExtra(SnifferActivity.RES_TITLE), data.getStringExtra(SnifferActivity.RES_PAGE))
-    }
     val openSniffer: () -> Unit = {
         val url = Analyzer.extractUrl(input) ?: "https://www.google.com"
-        sniffer.launch(Intent(ctx, SnifferActivity::class.java).putExtra(SnifferActivity.EXTRA_URL, url))
+        ctx.startActivity(Intent(ctx, SnifferActivity::class.java).putExtra(SnifferActivity.EXTRA_URL, url))
     }
     val playlistSel = remember(state) {
         ((state as? UiState.Done)?.analysis as? PlaylistResult)?.let { p ->
@@ -175,7 +161,7 @@ fun HomeScreen(vm: MainViewModel, padding: PaddingValues) {
                 TextButton(onClick = openSniffer) {
                     Icon(Icons.Rounded.TravelExplore, null, tint = Cyan, modifier = Modifier.size(18.dp))
                     Spacer(Modifier.width(6.dp))
-                    Text("Détecteur de flux (navigateur)", color = Cyan, fontSize = 13.sp)
+                    Text("Navigateur Genius (détecteur de vidéos)", color = Cyan, fontSize = 13.sp)
                 }
             }
         }
@@ -216,11 +202,11 @@ private fun ErrorCard(message: String, onSniff: (() -> Unit)? = null, onRetry: (
         if (unsupported && onSniff != null) {
             Spacer(Modifier.height(8.dp))
             Text(
-                "Ouvrez la page dans le détecteur, lancez la vidéo : Genius récupère le flux (MP4, HLS, DASH).",
+                "Ouvrez la page dans le navigateur Genius et lancez la vidéo : une fenêtre de téléchargement apparaît.",
                 color = TextDim, fontSize = 13.sp,
             )
             Spacer(Modifier.height(10.dp))
-            BigAction("Ouvrir dans le détecteur", Icons.Rounded.TravelExplore, onClick = onSniff)
+            BigAction("Ouvrir dans le navigateur Genius", Icons.Rounded.TravelExplore, onClick = onSniff)
         }
         TextButton(onClick = onRetry, modifier = Modifier.align(Alignment.End)) { Text("Réessayer", color = Cyan) }
     }
