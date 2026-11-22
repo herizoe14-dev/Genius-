@@ -120,6 +120,7 @@ import com.genius.downloader.engine.AdFilter
 import com.genius.downloader.engine.Analyzer
 import com.genius.downloader.engine.BrowserStore
 import com.genius.downloader.engine.Hls
+import com.genius.downloader.engine.StreamTracker
 import com.genius.downloader.engine.HlsInfo
 import com.genius.downloader.engine.MediaResult
 import com.genius.downloader.engine.VideoOption
@@ -182,7 +183,13 @@ private sealed interface Panel {
 class SnifferActivity : ComponentActivity() {
     /** Un onglet du navigateur : sa page et les vidéos détectées dedans. */
     private inner class BrowserTab(val web: WebView) {
+        /** Flux affichés : seulement celui qui joue à l'écran (et ses variantes). */
         val streams = mutableStateListOf<DetectedStream>()
+        /** Tous les flux vus sur la page actuelle. */
+        val all = ArrayList<DetectedStream>()
+        val tracker: StreamTracker = trackers.getOrPut(web) { StreamTracker() }
+        /** Adresse (sans #) de la page dont viennent les flux. */
+        var navUrl: String? = null
         var title by mutableStateOf("Nouvel onglet")
         var url by mutableStateOf("")
         var progress by mutableIntStateOf(0)
@@ -200,6 +207,7 @@ class SnifferActivity : ComponentActivity() {
     private var customCallback: WebChromeClient.CustomViewCallback? = null
 
     private val tabs = mutableStateListOf<BrowserTab>()
+    private val trackers = java.util.concurrent.ConcurrentHashMap<WebView, StreamTracker>()
     private var currentIndex by mutableIntStateOf(0)
     private val current: BrowserTab get() = tabs[currentIndex.coerceIn(0, tabs.lastIndex)]
     private val web: WebView get() = current.web
@@ -355,6 +363,7 @@ class SnifferActivity : ComponentActivity() {
     private fun closeTab(index: Int) {
         val tab = tabs.getOrNull(index) ?: return
         tabs.removeAt(index)
+        trackers.remove(tab.web)
         tab.web.destroy()
         if (tabs.isEmpty()) newTab() else selectTab(if (currentIndex >= tabs.size) tabs.lastIndex else currentIndex.coerceAtMost(tabs.lastIndex))
     }
@@ -437,7 +446,18 @@ class SnifferActivity : ComponentActivity() {
                 if (isCurrent(view)) { url?.let { if (!editingAddress) address = it }; updateNav(); refreshStar() }
             }
 
-            override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) = onUrl(view, url)
+            /** Nouvelle page (lien, actualisation, retour…) : les anciens flux sont oubliés. */
+            private fun onNavigate(view: WebView?, url: String?, force: Boolean) {
+                val tab = tabOf(view) ?: return
+                val k = url?.substringBefore('#') ?: return
+                if (force || (tab.navUrl != null && k != tab.navUrl)) clearStreams(tab)
+                tab.navUrl = k
+            }
+
+            override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) {
+                onNavigate(view, url, force = true)
+                onUrl(view, url)
+            }
 
             override fun onPageFinished(view: WebView?, url: String?) {
                 view?.evaluateJavascript(AdFilter.COSMETIC_JS, null)
@@ -446,7 +466,11 @@ class SnifferActivity : ComponentActivity() {
                 url?.let { BrowserStore.addVisit(it, view?.title.orEmpty()) }
             }
 
-            override fun doUpdateVisitedHistory(view: WebView?, url: String?, isReload: Boolean) = onUrl(view, url)
+            override fun doUpdateVisitedHistory(view: WebView?, url: String?, isReload: Boolean) {
+                // Site qui change d'épisode/de vidéo sans recharger la page (adresse modifiée par JavaScript).
+                onNavigate(view, url, force = false)
+                onUrl(view, url)
+            }
 
             override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
                 val uri = request?.url ?: return false
@@ -469,6 +493,9 @@ class SnifferActivity : ComponentActivity() {
                     runOnUiThread { filtered++ }
                     return EMPTY()
                 }
+                // Morceaux de la vidéo en cours de lecture : ce flux devient le flux affiché.
+                val tracker = view?.let { trackers[it] }
+                if (tracker?.touch(url) == true) runOnUiThread { tabOf(view)?.let(::refreshStreams) }
                 inspect(view, url, r.requestHeaders["Referer"])
                 return null
             }
@@ -525,9 +552,38 @@ class SnifferActivity : ComponentActivity() {
     }
 
     private fun addStream(tab: BrowserTab, s: DetectedStream, front: Boolean) {
-        val key = s.url.substringBefore('?')
-        if (tab.streams.any { it.url.substringBefore('?') == key }) return
-        if (front) tab.streams.add(0, s) else tab.streams.add(s)
+        val key = StreamTracker.key(s.url)
+        if (tab.all.any { StreamTracker.key(it.url) == key }) return
+        if (front) tab.all.add(0, s) else tab.all.add(s)
+        tab.tracker.add(s.url)
+        refreshStreams(tab)
+        if (s.kind == "HLS") {
+            // Lit la playlist pour ranger ses variantes / morceaux sous le bon flux.
+            val headers = headersFor(s)
+            lifecycleScope.launch {
+                val links = withContext(Dispatchers.IO) { Hls.linksOf(s.url, headers) }
+                if (links.isNotEmpty() && tab.all.any { it.url == s.url }) {
+                    tab.tracker.link(s.url, links)
+                    refreshStreams(tab)
+                }
+            }
+        }
+    }
+
+    /** Met à jour la liste affichée : uniquement le flux qui joue à l'écran. */
+    private fun refreshStreams(tab: BrowserTab) {
+        val visible = tab.tracker.visible(tab.all) { it.url }
+        if (visible != tab.streams.toList()) {
+            tab.streams.clear()
+            tab.streams.addAll(visible)
+        }
+    }
+
+    private fun clearStreams(tab: BrowserTab) {
+        tab.all.clear()
+        tab.tracker.reset()
+        tab.streams.clear()
+        if (tab === current && panel == Panel.Streams) panel = Panel.None
     }
 
     private inner class Bridge(private val owner: WebView) {
@@ -722,7 +778,7 @@ class SnifferActivity : ComponentActivity() {
                 textStyle = TextStyle(fontSize = 14.sp, color = Color.White),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri, imeAction = ImeAction.Go),
                 keyboardActions = KeyboardActions(onGo = {
-                    streams.clear(); web.loadUrl(toUrl(address)); focus.clearFocus(); web.requestFocus()
+                    clearStreams(current); web.loadUrl(toUrl(address)); focus.clearFocus(); web.requestFocus()
                 }),
                 trailingIcon = {
                     if (!editingAddress) IconButton(onClick = {
@@ -773,8 +829,8 @@ class SnifferActivity : ComponentActivity() {
             IconButton(onClick = { web.goForward() }, enabled = canForward) {
                 Icon(Icons.AutoMirrored.Rounded.ArrowForward, "Suivant", tint = if (canForward) Color.White else TextDim.copy(alpha = .4f))
             }
-            IconButton(onClick = { streams.clear(); web.loadUrl(HOME) }) { Icon(Icons.Rounded.Home, "Accueil", tint = Color.White) }
-            IconButton(onClick = { web.reload() }) { Icon(Icons.Rounded.Refresh, "Recharger", tint = Color.White) }
+            IconButton(onClick = { clearStreams(current); web.loadUrl(HOME) }) { Icon(Icons.Rounded.Home, "Accueil", tint = Color.White) }
+            IconButton(onClick = { clearStreams(current); web.reload() }) { Icon(Icons.Rounded.Refresh, "Recharger", tint = Color.White) }
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(horizontal = 6.dp)) {
                 Icon(Icons.Rounded.Shield, null, tint = Success, modifier = Modifier.size(18.dp))
                 Spacer(Modifier.width(4.dp))
@@ -826,7 +882,7 @@ class SnifferActivity : ComponentActivity() {
                 val fav = BrowserStore.isBookmarked(p.url)
                 Row(
                     Modifier.fillMaxWidth().clickable {
-                        streams.clear(); web.loadUrl(p.url); focus.clearFocus(); web.requestFocus()
+                        clearStreams(current); web.loadUrl(p.url); focus.clearFocus(); web.requestFocus()
                     }.padding(horizontal = 16.dp, vertical = 9.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
@@ -893,7 +949,7 @@ class SnifferActivity : ComponentActivity() {
                     item(key = p.url) {
                         Row(
                             Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp))
-                                .clickable { listMode = null; streams.clear(); web.loadUrl(p.url) }
+                                .clickable { listMode = null; clearStreams(current); web.loadUrl(p.url) }
                                 .padding(start = 8.dp, top = 6.dp, bottom = 6.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
