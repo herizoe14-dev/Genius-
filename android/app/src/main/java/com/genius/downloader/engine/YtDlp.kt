@@ -286,7 +286,11 @@ object YtDlp {
             addOption("--retries", 30)
             addOption("--fragment-retries", 50)
             addOption("--retry-sleep", "exp=1:20")
-            addOption("--socket-timeout", 30)
+            // Morceau bloqué : on abandonne vite la connexion lente et on réessaie tout de suite.
+            addOption("--retry-sleep", "fragment:exp=1:5")
+            addOption("--socket-timeout", 15)
+            // Gros fichiers (YouTube…) : lus par blocs de 10 Mo pour éviter le bridage des serveurs.
+            addOption("--http-chunk-size", "10M")
             Prefs.speedLimitKb.takeIf { it > 0 }?.let { addOption("--limit-rate", "${it}K") }
             headers.forEach { (k, v) -> addOption("--add-header", "$k:$v") }
             addCommands(args)

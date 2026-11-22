@@ -138,8 +138,11 @@ object DownloadManager {
                 val files = when (val job = task.job) {
                     is DownloadJob.YtDlpJob -> {
                         YtDlp.ready.await()
+                        val meter = SpeedMeter()
                         YtDlp.download(job.url, workDir, job.args, job.headers, id, job.fileTitle) { p, line ->
-                            set(id) { it.copy(progress = (p / 100f).coerceIn(0f, 1f), info = prettyLine(line)) }
+                            val prog = (p / 100f).coerceIn(0f, 1f)
+                            val info = prettyLine(line, prog, meter)
+                            set(id) { it.copy(progress = prog, info = info) }
                         }
                     }
                     is DownloadJob.DirectJob -> listOf(direct(id, job, workDir))
@@ -235,13 +238,17 @@ object DownloadManager {
         MediaKind.IMAGE -> "Images/Genius"
     }
 
-    private val PROGRESS_RE = Regex("""of\s+(~?)\s*([\d.]+\s*\w+).*?at\s+([\d.]+\s*\w+/s)(?:.*?ETA\s+(\S+))?""")
+    private val PROGRESS_RE = Regex("""of\s+(~?)\s*([\d.]+\s*[KMGT]?i?B)""")
 
-    private fun prettyLine(line: String): String {
+    /** Ligne de progression : taille, vitesse et temps restant lissés (pas les à-coups de yt-dlp). */
+    internal fun prettyLine(line: String, progress: Float, meter: SpeedMeter, now: Long = System.currentTimeMillis()): String {
         PROGRESS_RE.find(line)?.let { m ->
-            val eta = m.groupValues.getOrNull(4)?.takeIf { it.isNotBlank() }
-            val size = (if (m.groupValues[1].isNotEmpty()) "≈ " else "") + m.groupValues[2]
-            return listOfNotNull(size, m.groupValues[3], eta?.let { "reste $it" }).joinToString(" · ")
+            val total = SpeedMeter.parseSize(m.groupValues[2])
+            val rate = meter.add(now, progress)
+            val size = (if (m.groupValues[1].isNotEmpty()) "≈ " else "") + fmtSize(total)
+            val speed = if (rate > 0f && total > 0) SpeedMeter.fmtSpeed(rate.toDouble() * total) else "…"
+            val eta = SpeedMeter.fmtEta(meter.etaSec(progress)).takeIf { it.isNotEmpty() }
+            return listOfNotNull(size, speed, eta?.let { "reste $it" }).joinToString(" · ")
         }
         return when {
             "[Merger]" in line -> "Fusion audio + vidéo…"
